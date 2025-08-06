@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Body, Query
+from fastapi import APIRouter, HTTPException, Depends, Body, Query, Request
 from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session, joinedload
 from typing import Dict, Type, Any, Callable
@@ -48,19 +48,16 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
         def create_item(
             item: Any = Body(...),
             db: Session = Depends(get_db),
-            model_name: str = Depends(get_model_name(name))  # Bind name at definition
+            model_name: str = Depends(get_model_name(name))
         ):
             logger.info(f"Received request for endpoint: /{name}, model_name: {model_name}, data: {item}")
             item_dict = item.dict() if hasattr(item, "dict") else item
             logger.info(f"Preparing to validate with model: {model_name}, data: {item_dict}")
             validated_item = validate_request_body(item_dict, model_name, pydantic_models)
             logger.info(f"Validation successful for {model_name}, validated data: {validated_item.dict()}")
-            # Dynamically get the correct db_model based on model_name
             db_model = sqlalchemy_models[model_name]
-            # Hash password for users
             if model_name == "users" and "hashed_password" in item_dict:
                 item_dict["hashed_password"] = pwd_context.hash(item_dict["hashed_password"])
-            # Validate foreign keys
             for col in db_model.__table__.columns:
                 if col.foreign_keys and col.name in item_dict:
                     fk_table, fk_column = list(col.foreign_keys)[0].column.table.name, list(col.foreign_keys)[0].column.name
@@ -78,12 +75,18 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             f"/{name}/",
             description=f"Retrieve all {name.capitalize()} records with related data"
         )
-        def read_all(db: Session = Depends(get_db)):
-            logger.info(f"Retrieving all records for /{name}")
-            query = db.query(model_class)  # Use model_class directly
+        def read_all(request: Request, db: Session = Depends(get_db), model_name: str = Depends(get_model_name(name))):
+            logger.info(f"Received GET request for URL: {request.url.path}, model: {model_class.__name__}, resolved model_name: {model_name}")
+            logger.info(f"Starting to retrieve all records for /{name}, model: {sqlalchemy_models[model_name].__name__}")
+            logger.info(f"Session state before query: {db}")
+            query = db.query(sqlalchemy_models[model_name])
+            logger.info(f"Query constructed: {query}")
             for rel in relationships:
-                query = query.options(joinedload(getattr(model_class, rel)))
-            return query.all()
+                query = query.options(joinedload(getattr(sqlalchemy_models[model_name], rel)))
+                logger.info(f"Added joinedload for relationship: {rel}")
+            results = query.all()
+            logger.info(f"Retrieved records: {results}")
+            return results
 
         @router.get(
             f"/{name}/{{item_id}}",
@@ -91,7 +94,7 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
         )
         def read_item(item_id: str, db: Session = Depends(get_db)):
             logger.info(f"Retrieving item {item_id} for /{name}")
-            query = db.query(model_class)  # Use model_class directly
+            query = db.query(model_class)
             for rel in relationships:
                 query = query.options(joinedload(getattr(model_class, rel)))
             obj = query.get(item_id)
@@ -108,7 +111,7 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             item_id: str,
             item: Any = Body(...),
             db: Session = Depends(get_db),
-            model_name: str = Depends(get_model_name(name))  # Bind name at definition
+            model_name: str = Depends(get_model_name(name))
         ):
             logger.info(f"Received update request for /{name}, item_id: {item_id}, model_name: {model_name}, data: {item}")
             item_dict = item.dict() if hasattr(item, "dict") else item
@@ -122,7 +125,6 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             item_dict = validated_item.dict(exclude_unset=True)
             if model_name == "users" and "hashed_password" in item_dict:
                 item_dict["hashed_password"] = pwd_context.hash(item_dict["hashed_password"])
-            # Validate foreign keys
             for col in db_model.__table__.columns:
                 if col.foreign_keys and col.name in item_dict:
                     fk_table, fk_column = list(col.foreign_keys)[0].column.table.name, list(col.foreign_keys)[0].column.name
@@ -142,7 +144,7 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
         )
         def delete_item(item_id: str, db: Session = Depends(get_db)):
             logger.info(f"Received delete request for /{name}, item_id: {item_id}")
-            db_obj = db.query(model_class).get(item_id)  # Use model_class directly
+            db_obj = db.query(model_class).get(item_id)
             if not db_obj:
                 raise HTTPException(status_code=404, detail="Item not found")
             db.delete(db_obj)
