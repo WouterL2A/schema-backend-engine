@@ -4,17 +4,17 @@
       "name": "roles",
       "columns": [
         { "name": "id", "type": "uuid", "primary": true },
-        { "name": "name", "type": "string", "unique": true }
+        { "name": "name", "type": "string", "unique": true, "nullable": false }
       ]
     },
     {
       "name": "users",
       "columns": [
         { "name": "id", "type": "uuid", "primary": true },
-        { "name": "email", "type": "string", "unique": true },
-        { "name": "hashed_password", "type": "string" },
-        { "name": "created_at", "type": "datetime", "default": "now" },
-        { "name": "role_id", "type": "uuid", "foreign_key": "roles.id" }
+        { "name": "email", "type": "string", "unique": true, "nullable": false },
+        { "name": "hashed_password", "type": "string", "nullable": false },
+        { "name": "created_at", "type": "datetime", "default": "now", "nullable": false },
+        { "name": "role_id", "type": "uuid", "foreign_key": "roles.id", "relationship_name": "role", "nullable": false }
       ]
     }
   ]

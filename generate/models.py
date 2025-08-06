@@ -4,24 +4,34 @@ from sqlalchemy.orm import relationship, declarative_base
 from generate.loader import load_schema
 import uuid
 from datetime import datetime
+from pydantic import create_model
 
 Base = declarative_base()
 
 def map_type(col_type: str):
-    if col_type == "uuid":
-        return UUID(as_uuid=True)
-    elif col_type == "string":
-        return String
-    elif col_type == "datetime":
-        return DateTime
-    elif col_type == "int":
-        return Integer
-    else:
-        raise ValueError(f"Unsupported type: {col_type}")
+    type_map = {
+        "uuid": UUID(as_uuid=True),
+        "string": String,
+        "datetime": DateTime,
+        "int": Integer,
+    }
+    if col_type not in type_map:
+        raise ValueError(f"Unsupported column type: {col_type}. Supported types: {list(type_map.keys())}")
+    return type_map[col_type]
 
 def generate_models():
     schema = load_schema()
     models = {}
+    pydantic_models = {}
+
+    # Validate foreign key references
+    table_names = {table["name"] for table in schema["tables"]}
+    for table in schema["tables"]:
+        for col in table["columns"]:
+            if "foreign_key" in col:
+                fk_table, fk_column = col["foreign_key"].split(".")
+                if fk_table not in table_names:
+                    raise ValueError(f"Foreign key references unknown table: {fk_table}")
 
     for table in schema["tables"]:
         class_attrs = {
@@ -41,6 +51,8 @@ def generate_models():
                 kwargs["unique"] = True
             if col.get("default") == "now":
                 kwargs["default"] = datetime.utcnow
+            if col.get("nullable", False):
+                kwargs["nullable"] = True
             if "foreign_key" in col:
                 fk_table, fk_column = col["foreign_key"].split(".")
                 kwargs["ForeignKey"] = f"{fk_table}.{fk_column}"
@@ -54,13 +66,27 @@ def generate_models():
 
         models[table["name"]] = type(table["name"].capitalize(), (Base,), class_attrs)
 
+        # Build Pydantic model, excluding id since it's database-generated
+        pydantic_fields = {}
+        for col in table["columns"]:
+            if col.get("name") != "id":  # Exclude id from Pydantic input model
+                pydantic_type = {
+                    "uuid": str,
+                    "string": str,
+                    "datetime": str,
+                    "int": int
+                }[col["type"]]
+                is_nullable = col.get("nullable", False)
+                pydantic_fields[col["name"]] = (pydantic_type, None if is_nullable else ...)
+        pydantic_models[table["name"]] = create_model(f"{table['name'].capitalize()}In", **pydantic_fields)
+
     # Add relationships
     for table in schema["tables"]:
         model = models[table["name"]]
         for col in table["columns"]:
             if "foreign_key" in col:
                 fk_table = col["foreign_key"].split(".")[0]
-                rel_name = fk_table.rstrip("s")
+                rel_name = col.get("relationship_name", fk_table.rstrip("s"))
                 setattr(model, rel_name, relationship(models[fk_table]))
 
-    return models
+    return models, pydantic_models
