@@ -1,50 +1,31 @@
+# generate/loader.py
 import json
-from jsonschema import validate, ValidationError
+from pathlib import Path
+from jsonschema import ValidationError
+from jsonschema.validators import Draft7Validator  # ⬅ add this
 
-def load_schema(path="schema.json"):
-    schema_validator = {
-        "type": "object",
-        "required": ["tables"],
-        "properties": {
-            "tables": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "required": ["name", "columns"],
-                    "properties": {
-                        "name": {"type": "string"},
-                        "columns": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "required": ["name", "type"],
-                                "properties": {
-                                    "name": {"type": "string"},
-                                    "type": {"enum": ["uuid", "string", "datetime", "int"]},
-                                    "primary": {"type": "boolean"},
-                                    "unique": {"type": "boolean"},
-                                    "nullable": {"type": "boolean"},
-                                    "default": {"type": "string"},
-                                    "foreign_key": {"type": "string", "pattern": r"^[a-zA-Z_]+\.[a-zA-Z_]+$"},
-                                    "relationship_name": {"type": "string"}
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+class InvalidSchemaError(Exception):
+    pass
+
+def load_schema(path: str = "schema.json") -> dict:
+    schema_path = Path(path)
+    if not schema_path.exists():
+        raise InvalidSchemaError(f"Schema file not found at {path}")
+
+    data = json.loads(schema_path.read_text(encoding="utf-8"))
+
+    spec_path = Path("schema_definitions/schema_v1.json")
+    if not spec_path.exists():
+        raise InvalidSchemaError(
+            "Schema spec not found at schema_definitions/schema_v1.json"
+        )
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
 
     try:
-        with open(path, "r") as f:
-            schema = json.load(f)
-        validate(instance=schema, schema=schema_validator)
-        return schema
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Schema file not found at: {path}")
-    except json.JSONDecodeError:
-        raise ValueError(f"Invalid JSON in schema file: {path}")
+        # Use Draft-07 explicitly to avoid deprecation warning
+        Draft7Validator.check_schema(spec)
+        Draft7Validator(spec).validate(data)
     except ValidationError as e:
-        raise ValueError(f"Schema validation failed: {e.message}")
-    
+        raise InvalidSchemaError(f"Schema validation failed: {e.message}") from e
+
+    return data

@@ -7,3 +7,7 @@ __pycache__/
 
 # VSCode
 .vscode/
+
+# database
+app.db
+dev.db

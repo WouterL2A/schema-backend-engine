@@ -1,13 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends, Body, Query, Request
-from pydantic import BaseModel, ValidationError
+from fastapi import APIRouter, HTTPException, Depends, Body, Request
+from pydantic import ValidationError
 from sqlalchemy.orm import Session, joinedload
-from typing import Dict, Type, Any, Callable
+from sqlalchemy.exc import IntegrityError
+from typing import Dict, Any, Callable
 from engine.db import get_db
 from passlib.context import CryptContext
-import uuid
 import logging
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -16,13 +15,14 @@ router = APIRouter()
 
 def validate_request_body(data: dict, model_name: str, pydantic_models: Dict):
     logger.info(f"Starting validation for model: {model_name}, available models: {list(pydantic_models.keys())}")
+    if model_name not in pydantic_models:
+        raise HTTPException(status_code=400, detail=f"Model {model_name} not found")
     try:
         return pydantic_models[model_name](**data)
     except ValidationError as e:
         logger.error(f"Validation failed for {model_name}: {e.errors()}")
         raise HTTPException(status_code=400, detail=f"Invalid data: {e.errors()}")
 
-# Dependency to provide the correct model name with bound value
 def get_model_name(name: str) -> Callable[[], str]:
     def _get_model_name():
         logger.info(f"Resolving model name, using bound value: {name}")
@@ -37,44 +37,33 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
     for name, model_class in sqlalchemy_models.items():
         logger.info(f"Setting up endpoint for path: /{name}, model: {model_class.__name__}")
 
-        # Get relationship names for explicit joinedload
-        relationships = [attr for attr, rel in model_class.__dict__.items() if isinstance(rel, property) and hasattr(rel, "is_attribute")]
+        # Use schema-defined relationships
+        relationships = []
+        for table in models.get("schema", {"tables": []})["tables"]:
+            if table["tableName"] == name:
+                relationships = [fk.get("relationshipName", f"{fk['referencedTable']}_{fk['columnName']}")
+                                for fk in table.get("foreignKeys", [])]
 
-        @router.post(
-            f"/{name}/",
-            response_model=pydantic_models[name],
-            description=f"Create a new {name.capitalize()} record"
-        )
-        def create_item(
-            item: Any = Body(...),
-            db: Session = Depends(get_db),
-            model_name: str = Depends(get_model_name(name))
-        ):
+        @router.post(f"/{name}/", response_model=pydantic_models[name], description=f"Create a new {name.capitalize()} record")
+        def create_item(item: Any = Body(...), db: Session = Depends(get_db), model_name: str = Depends(get_model_name(name))):
             logger.info(f"Received request for endpoint: /{name}, model_name: {model_name}, data: {item}")
             item_dict = item.dict() if hasattr(item, "dict") else item
             logger.info(f"Preparing to validate with model: {model_name}, data: {item_dict}")
             validated_item = validate_request_body(item_dict, model_name, pydantic_models)
             logger.info(f"Validation successful for {model_name}, validated data: {validated_item.dict()}")
             db_model = sqlalchemy_models[model_name]
-            if model_name == "users" and "hashed_password" in item_dict:
-                item_dict["hashed_password"] = pwd_context.hash(item_dict["hashed_password"])
-            for col in db_model.__table__.columns:
-                if col.foreign_keys and col.name in item_dict:
-                    fk_table, fk_column = list(col.foreign_keys)[0].column.table.name, list(col.foreign_keys)[0].column.name
-                    fk_model = sqlalchemy_models[fk_table]
-                    if not db.query(fk_model).filter(getattr(fk_model, fk_column) == item_dict[col.name]).first():
-                        raise HTTPException(status_code=400, detail=f"Invalid {col.name}: {fk_table}.{fk_column} does not exist")
-            obj = db_model(**item_dict)
-            db.add(obj)
-            db.commit()
-            db.refresh(obj)
-            logger.info(f"Item created for {model_name} with id: {obj.id}")
-            return obj
+            obj = db_model(**validated_item.dict())
+            try:
+                db.add(obj)
+                db.commit()
+                db.refresh(obj)
+                logger.info(f"Item created for {model_name} with id: {obj.id}")
+                return obj
+            except IntegrityError as e:
+                db.rollback()
+                raise HTTPException(status_code=400, detail=f"Database error: {str(e)}")
 
-        @router.get(
-            f"/{name}/",
-            description=f"Retrieve all {name.capitalize()} records with related data"
-        )
+        @router.get(f"/{name}/", description=f"Retrieve all {name.capitalize()} records with related data")
         def read_all(request: Request, db: Session = Depends(get_db), model_name: str = Depends(get_model_name(name))):
             logger.info(f"Received GET request for URL: {request.url.path}, model: {model_class.__name__}, resolved model_name: {model_name}")
             logger.info(f"Starting to retrieve all records for /{name}, model: {sqlalchemy_models[model_name].__name__}")
@@ -88,10 +77,7 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             logger.info(f"Retrieved records: {results}")
             return results
 
-        @router.get(
-            f"/{name}/{{item_id}}",
-            description=f"Retrieve a single {name.capitalize()} record by ID"
-        )
+        @router.get(f"/{name}/{{item_id}}", description=f"Retrieve a single {name.capitalize()} record by ID")
         def read_item(item_id: str, db: Session = Depends(get_db)):
             logger.info(f"Retrieving item {item_id} for /{name}")
             query = db.query(model_class)
@@ -102,17 +88,8 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
                 raise HTTPException(status_code=404, detail="Item not found")
             return obj
 
-        @router.put(
-            f"/{name}/{{item_id}}",
-            response_model=pydantic_models[name],
-            description=f"Update an existing {name.capitalize()} record by ID"
-        )
-        def update_item(
-            item_id: str,
-            item: Any = Body(...),
-            db: Session = Depends(get_db),
-            model_name: str = Depends(get_model_name(name))
-        ):
+        @router.put(f"/{name}/{{item_id}}", response_model=pydantic_models[name], description=f"Update an existing {name.capitalize()} record by ID")
+        def update_item(item_id: str, item: Any = Body(...), db: Session = Depends(get_db), model_name: str = Depends(get_model_name(name))):
             logger.info(f"Received update request for /{name}, item_id: {item_id}, model_name: {model_name}, data: {item}")
             item_dict = item.dict() if hasattr(item, "dict") else item
             logger.info(f"Preparing to validate update for {model_name}, data: {item_dict}")
@@ -122,26 +99,18 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             db_obj = db.query(db_model).get(item_id)
             if not db_obj:
                 raise HTTPException(status_code=404, detail="Item not found")
-            item_dict = validated_item.dict(exclude_unset=True)
-            if model_name == "users" and "hashed_password" in item_dict:
-                item_dict["hashed_password"] = pwd_context.hash(item_dict["hashed_password"])
-            for col in db_model.__table__.columns:
-                if col.foreign_keys and col.name in item_dict:
-                    fk_table, fk_column = list(col.foreign_keys)[0].column.table.name, list(col.foreign_keys)[0].column.name
-                    fk_model = sqlalchemy_models[fk_table]
-                    if not db.query(fk_model).filter(getattr(fk_model, fk_column) == item_dict[col.name]).first():
-                        raise HTTPException(status_code=400, detail=f"Invalid {col.name}: {fk_table}.{fk_column} does not exist")
-            for k, v in item_dict.items():
-                setattr(db_obj, k, v)
-            db.commit()
-            db.refresh(db_obj)
-            logger.info(f"Item updated for {model_name} with id: {item_id}")
-            return db_obj
+            try:
+                for k, v in validated_item.dict(exclude_unset=True).items():
+                    setattr(db_obj, k, v)
+                db.commit()
+                db.refresh(db_obj)
+                logger.info(f"Item updated for {model_name} with id: {item_id}")
+                return db_obj
+            except IntegrityError as e:
+                db.rollback()
+                raise HTTPException(status_code=400, detail=f"Database error: {str(e)}")
 
-        @router.delete(
-            f"/{name}/{{item_id}}",
-            description=f"Delete a {name.capitalize()} record by ID"
-        )
+        @router.delete(f"/{name}/{{item_id}}", description=f"Delete a {name.capitalize()} record by ID")
         def delete_item(item_id: str, db: Session = Depends(get_db)):
             logger.info(f"Received delete request for /{name}, item_id: {item_id}")
             db_obj = db.query(model_class).get(item_id)

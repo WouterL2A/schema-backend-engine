@@ -1,46 +1,59 @@
-from fastapi import FastAPI, Depends
+# engine/main.py
+import sys
+import logging
+from typing import Dict, Type
+from fastapi import FastAPI
+from pydantic import BaseModel, create_model
+from sqlalchemy.orm import DeclarativeMeta
+
+from engine.db import engine
+from generate.loader import load_schema, InvalidSchemaError
+from generate.models import generate_models, Base
 from engine.routes import router, setup_routes
-from generate.models import generate_models
-from pydantic import BaseModel
+
+log = logging.getLogger("engine.main")
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="Schema Backend Engine", version="1.0.0")
 
-# Global variables to store models
-sqlalchemy_models = {}
-pydantic_models = {}
+def build_pydantic_models(sa_models: Dict[str, DeclarativeMeta]) -> Dict[str, Type[BaseModel]]:
+    """Create input Pydantic models for each SQLAlchemy model (exclude PK)."""
+    p_models: Dict[str, Type[BaseModel]] = {}
+    for name, sa_cls in sa_models.items():
+        fields = {}
+        for col in sa_cls.__table__.columns:
+            if not col.primary_key:
+                # Use SQLAlchemy's python_type for simple mapping
+                fields[col.name] = (col.type.python_type, ...)
+        p_models[name] = create_model(f"{name.capitalize()}In", **fields)
+    return p_models
 
-@app.on_event("startup")
-async def startup_event():
-    global sqlalchemy_models, pydantic_models
-    sqlalchemy_models, pydantic_models = generate_models()
-    
-    print(f"Generated models: {list(sqlalchemy_models.keys())}")
-    print(f"Generated Pydantic models: {list(pydantic_models.keys())}")
-    setup_routes(router, {"sqlalchemy_models": sqlalchemy_models, "pydantic_models": pydantic_models})
-    print(f"Routes in router after setup: {len(router.routes)}")
+try:
+    # 1) Validate schema & load it
+    schema = load_schema()
+
+    # 2) Build SQLAlchemy models in memory
+    sa_models = generate_models()             # dict: tableName -> SA class
+
+    # 3) Create DB tables
+    Base.metadata.create_all(bind=engine)
+
+    # 4) Build Pydantic input models (for your routes' validation)
+    p_models = build_pydantic_models(sa_models)
+
+    # 5) Shape the structure routes.py expects, then register CRUD routes
+    models_bundle = {
+        "sqlalchemy_models": sa_models,
+        "pydantic_models": p_models,
+        "schema": schema,
+    }
+    setup_routes(router, models_bundle)
     app.include_router(router)
-    print(f"Routes in app after include_router: {len(app.routes)}")
 
-def custom_openapi():
-    print(f"pydantic_models in custom_openapi: {list(pydantic_models.keys())}")
-    if app.openapi_schema:
-        return app.openapi_schema
-    from fastapi.openapi.utils import get_openapi
-    openapi_schema = get_openapi(
-        title="Schema Backend Engine",
-        version="1.0.0",
-        description="API for dynamic schema-based operations",
-        routes=app.routes,
-    )
-    # Dynamically update request body schemas for POST and PUT endpoints
-    for path_key, path_data in openapi_schema["paths"].items():
-        for method_key, method_data in path_data.items():
-            if "requestBody" in method_data and "content" in method_data["requestBody"] and "application/json" in method_data["requestBody"]["content"]:
-                model_name = path_key.split("/")[1]
-                if model_name in pydantic_models:
-                    model = pydantic_models[model_name]
-                    method_data["requestBody"]["content"]["application/json"]["schema"] = model.schema()
-    app.openapi_schema = openapi_schema
-    return app.openapi_schema
+except InvalidSchemaError as e:
+    log.error(f"Startup failed: {e}")
+    sys.exit(1)
 
-app.openapi = custom_openapi
+@app.get("/")
+def health():
+    return {"status": "ok"}

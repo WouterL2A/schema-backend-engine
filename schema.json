@@ -1,20 +1,50 @@
 {
+  "$schema": "schema_definitions/schema_v1.json",
   "tables": [
     {
-      "name": "roles",
+      "tableName": "roles",
       "columns": [
-        { "name": "id", "type": "uuid", "primary": true },
-        { "name": "name", "type": "string", "unique": true, "nullable": false }
+        { "columnName": "id", "dataType": "UUID" },
+        { "columnName": "name", "dataType": "VARCHAR", "length": 100, "isUnique": true },
+        { "columnName": "created_at", "dataType": "TIMESTAMP", "defaultValue": "now" }
+      ],
+      "primaryKey": ["id"]
+    },
+    {
+      "tableName": "users",
+      "columns": [
+        { "columnName": "id", "dataType": "UUID" },
+        { "columnName": "email", "dataType": "VARCHAR", "length": 255, "isUnique": true },
+        { "columnName": "hashed_password", "dataType": "VARCHAR", "length": 255 },
+        { "columnName": "created_at", "dataType": "TIMESTAMP", "defaultValue": "now" }
+      ],
+      "primaryKey": ["id"]
+    },
+    {
+      "tableName": "user_roles",
+      "columns": [
+        { "columnName": "id", "dataType": "UUID" },
+        { "columnName": "user_id", "dataType": "UUID" },
+        { "columnName": "role_id", "dataType": "UUID" },
+        { "columnName": "created_at", "dataType": "TIMESTAMP", "defaultValue": "now" }
+      ],
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columnName": "user_id", "referencedTable": "users", "referencedColumn": "id", "relationshipName": "user" },
+        { "columnName": "role_id", "referencedTable": "roles", "referencedColumn": "id", "relationshipName": "role" }
       ]
     },
     {
-      "name": "users",
+      "tableName": "sessions",
       "columns": [
-        { "name": "id", "type": "uuid", "primary": true },
-        { "name": "email", "type": "string", "unique": true, "nullable": false },
-        { "name": "hashed_password", "type": "string", "nullable": false },
-        { "name": "created_at", "type": "datetime", "default": "now", "nullable": false },
-        { "name": "role_id", "type": "uuid", "foreign_key": "roles.id", "relationship_name": "role", "nullable": false }
+        { "columnName": "id", "dataType": "UUID" },
+        { "columnName": "user_id", "dataType": "UUID" },
+        { "columnName": "issued_at", "dataType": "TIMESTAMP", "defaultValue": "now" },
+        { "columnName": "expires_at", "dataType": "TIMESTAMP", "isNullable": true }
+      ],
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columnName": "user_id", "referencedTable": "users", "referencedColumn": "id", "relationshipName": "user" }
       ]
     }
   ]

@@ -1,92 +1,104 @@
-from sqlalchemy import Column, String, DateTime, Integer, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+# generate/models.py
+from datetime import datetime
+import uuid
+from typing import Dict, Any
+
+from sqlalchemy import (
+    Column,
+    String,
+    Integer,
+    DateTime,
+    ForeignKey,
+)
 from sqlalchemy.orm import relationship, declarative_base
 from generate.loader import load_schema
-import uuid
-from datetime import datetime
-from pydantic import create_model
 
 Base = declarative_base()
 
-def map_type(col_type: str):
-    type_map = {
-        "uuid": UUID(as_uuid=True),
-        "string": String,
-        "datetime": DateTime,
-        "int": Integer,
-    }
-    if col_type not in type_map:
-        raise ValueError(f"Unsupported column type: {col_type}. Supported types: {list(type_map.keys())}")
-    return type_map[col_type]
+def map_type(data_type: str, length: int | None = None):
+    """
+    Map spec dataType -> SQLAlchemy type.
+    UUID  -> String(36)  (portable across SQLite/MSSQL/MySQL/Postgres)
+    VARCHAR -> String(length or default)
+    INTEGER -> Integer
+    TIMESTAMP -> DateTime
+    """
+    if data_type == "UUID":
+        return String(36)
+    if data_type == "VARCHAR":
+        return String(length) if length else String
+    if data_type == "INTEGER":
+        return Integer
+    if data_type == "TIMESTAMP":
+        return DateTime
+    raise ValueError(f"Unsupported dataType: {data_type}")
 
-def generate_models():
-    schema = load_schema()
-    models = {}
-    pydantic_models = {}
+def generate_models() -> Dict[str, Any]:
+    spec = load_schema()
+    models: Dict[str, Any] = {}
 
-    # Validate foreign key references
-    table_names = {table["name"] for table in schema["tables"]}
-    for table in schema["tables"]:
-        for col in table["columns"]:
-            if "foreign_key" in col:
-                fk_table, fk_column = col["foreign_key"].split(".")
-                if fk_table not in table_names:
-                    raise ValueError(f"Foreign key references unknown table: {fk_table}")
+    # Pre-index FKs by table for quick lookup: {tableName: {columnName: (refTable, refCol, relName)}}
+    fk_index: Dict[str, Dict[str, tuple[str, str, str | None]]] = {}
+    for t in spec["tables"]:
+        fks = {}
+        for fk in t.get("foreignKeys", []) or []:
+            fks[fk["columnName"]] = (fk["referencedTable"], fk["referencedColumn"], fk.get("relationshipName"))
+        fk_index[t["tableName"]] = fks
 
-    for table in schema["tables"]:
-        class_attrs = {
-            "__tablename__": table["name"],
-            "__table_args__": {"extend_existing": True}
+    # First pass: define models + columns
+    for t in spec["tables"]:
+        table_name = t["tableName"]
+        columns = t["columns"]
+        pk_list = set(t.get("primaryKey", []))
+        fks_for_table = fk_index.get(table_name, {})
+
+        class_attrs: Dict[str, Any] = {
+            "__tablename__": table_name,
+            "__table_args__": {"extend_existing": True},
         }
 
-        for col in table["columns"]:
-            col_type = map_type(col["type"])
-            kwargs = {}
+        # Build Columns
+        for col in columns:
+            col_name = col["columnName"]
+            data_type = col["dataType"]
+            length = col.get("length")
+            sa_type = map_type(data_type, length)
 
-            if col.get("primary"):
+            kwargs: Dict[str, Any] = {}
+            # Primary key (from table.primaryKey list)
+            if col_name in pk_list:
                 kwargs["primary_key"] = True
-                if col["type"] == "uuid":
-                    kwargs["default"] = uuid.uuid4
-            if col.get("unique"):
+                if data_type == "UUID":
+                    kwargs["default"] = lambda: str(uuid.uuid4())
+            # Nullability (default True unless explicitly false)
+            if col.get("isNullable") is False:
+                kwargs["nullable"] = False
+            # Uniqueness
+            if col.get("isUnique"):
                 kwargs["unique"] = True
-            if col.get("default") == "now":
+            # Defaults
+            if col.get("defaultValue") == "now" and data_type == "TIMESTAMP":
                 kwargs["default"] = datetime.utcnow
-            if col.get("nullable", False):
-                kwargs["nullable"] = True
-            if "foreign_key" in col:
-                fk_table, fk_column = col["foreign_key"].split(".")
-                kwargs["ForeignKey"] = f"{fk_table}.{fk_column}"
 
-            if "ForeignKey" in kwargs:
-                class_attrs[col["name"]] = Column(
-                    col_type, ForeignKey(kwargs["ForeignKey"]), **{k: v for k, v in kwargs.items() if k != "ForeignKey"}
-                )
+            # Foreign key?
+            if col_name in fks_for_table:
+                ref_table, ref_col, _rel = fks_for_table[col_name]
+                class_attrs[col_name] = Column(sa_type, ForeignKey(f"{ref_table}.{ref_col}"), **kwargs)
             else:
-                class_attrs[col["name"]] = Column(col_type, **kwargs)
+                class_attrs[col_name] = Column(sa_type, **kwargs)
 
-        models[table["name"]] = type(table["name"].capitalize(), (Base,), class_attrs)
+        # Create model class
+        model_cls = type(table_name.capitalize(), (Base,), class_attrs)
+        models[table_name] = model_cls
 
-        # Build Pydantic model, excluding id since it's database-generated
-        pydantic_fields = {}
-        for col in table["columns"]:
-            if col.get("name") != "id":  # Exclude id from Pydantic input model
-                pydantic_type = {
-                    "uuid": str,
-                    "string": str,
-                    "datetime": str,
-                    "int": int
-                }[col["type"]]
-                is_nullable = col.get("nullable", False)
-                pydantic_fields[col["name"]] = (pydantic_type, None if is_nullable else ...)
-        pydantic_models[table["name"]] = create_model(f"{table['name'].capitalize()}In", **pydantic_fields)
+    # Second pass: add relationships
+    # We add a relationship on the child table pointing to parent table
+    for t in spec["tables"]:
+        table_name = t["tableName"]
+        model_cls = models[table_name]
+        for fk in t.get("foreignKeys", []) or []:
+            ref_table = fk["referencedTable"]
+            rel_name = fk.get("relationshipName") or ref_table.rstrip("s")
+            setattr(model_cls, rel_name, relationship(models[ref_table]))
 
-    # Add relationships
-    for table in schema["tables"]:
-        model = models[table["name"]]
-        for col in table["columns"]:
-            if "foreign_key" in col:
-                fk_table = col["foreign_key"].split(".")[0]
-                rel_name = col.get("relationship_name", fk_table.rstrip("s"))
-                setattr(model, rel_name, relationship(models[fk_table]))
-
-    return models, pydantic_models
+    return models
