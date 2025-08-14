@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schema_definitions/schema_v3.json",
+  "title": "User Management Model",
+  "description": "Draft-07 compliant schema-of-entities used by the schema-driven backend generator.",
+  "type": "object",
+
+  "properties": {
+    "roles": { "$ref": "#/definitions/roles" },
+    "users": { "$ref": "#/definitions/users" },
+    "user_roles": { "$ref": "#/definitions/user_roles" },
+    "sessions": { "$ref": "#/definitions/sessions" }
+  },
+  "required": [],
+  "additionalProperties": false,
+
+  "definitions": {
+    "roles": {
+      "type": "object",
+      "title": "Role",
+      "properties": {
+        "id": { "type": "string", "format": "uuid", "description": "Unique role identifier" },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Role name (e.g., user, admin, manager)",
+          "x-unique": true
+        },
+        "created_at": { "type": "string", "format": "date-time", "default": "now()", "description": "Creation timestamp" }
+      },
+      "required": ["id", "name"],
+      "x-primaryKey": ["id"],
+      "x-displayColumn": "name",
+      "additionalProperties": false
+    },
+
+    "users": {
+      "type": "object",
+      "title": "User",
+      "properties": {
+        "id": { "type": "string", "format": "uuid", "description": "Unique user identifier" },
+        "email": { "type": "string", "format": "email", "maxLength": 255, "description": "User email", "x-unique": true },
+        "hashed_password": { "type": "string", "minLength": 8, "maxLength": 255, "description": "Hashed password" },
+        "created_at": { "type": "string", "format": "date-time", "default": "now()", "description": "Creation timestamp" },
+        "roles": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["user", "admin", "manager"] },
+          "description": "List of role names (for RJSF forms)"
+        },
+        "permissions": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["read", "write", "delete"] },
+          "description": "Admin-specific permissions"
+        }
+      },
+      "required": ["id", "email", "hashed_password"],
+      "if": { "properties": { "roles": { "contains": { "const": "admin" } } }, "required": ["roles"] },
+      "then": { "required": ["permissions"] },
+      "x-primaryKey": ["id"],
+      "x-displayColumn": "email",
+      "additionalProperties": false
+    },
+
+    "user_roles": {
+      "type": "object",
+      "title": "UserRole",
+      "properties": {
+        "id": { "type": "string", "format": "uuid", "description": "Unique identifier" },
+        "user_id": {
+          "allOf": [
+            { "$ref": "#/definitions/users/properties/id" },
+            { "type": "string", "format": "uuid" }
+          ],
+          "description": "Reference to user",
+          "x-refTable": "users",
+          "x-refColumn": "id",
+          "x-relationshipName": "user"
+        },
+        "role_id": {
+          "allOf": [
+            { "$ref": "#/definitions/roles/properties/id" },
+            { "type": "string", "format": "uuid" }
+          ],
+          "description": "Reference to role",
+          "x-refTable": "roles",
+          "x-refColumn": "id",
+          "x-relationshipName": "role"
+        },
+        "created_at": { "type": "string", "format": "date-time", "default": "now()", "description": "Creation timestamp" }
+      },
+      "required": ["id", "user_id", "role_id"],
+      "x-primaryKey": ["id"],
+      "additionalProperties": false
+    },
+
+    "sessions": {
+      "type": "object",
+      "title": "Session",
+      "properties": {
+        "id": { "type": "string", "format": "uuid", "description": "Unique session identifier" },
+        "user_id": {
+          "allOf": [
+            { "$ref": "#/definitions/users/properties/id" },
+            { "type": "string", "format": "uuid" }
+          ],
+          "description": "Reference to user",
+          "x-refTable": "users",
+          "x-refColumn": "id",
+          "x-relationshipName": "user"
+        },
+        "issued_at": { "type": "string", "format": "date-time", "default": "now()", "description": "Session issuance timestamp" },
+        "expires_at": { "type": "string", "format": "date-time", "description": "Session expiration timestamp" }
+      },
+      "required": ["id", "user_id", "issued_at"],
+      "x-primaryKey": ["id"],
+      "additionalProperties": false
+    }
+  }
+}
