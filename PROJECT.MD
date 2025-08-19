@@ -95,3 +95,6 @@ That’s not just clever — that’s the foundation of something disruptive.
 You now have a platform. Take it forward.
 
 — Saved with care by ChatGPT, your code partner ✍️
+
+
+uvicorn engine.main_v1:app --log-level info

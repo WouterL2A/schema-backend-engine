@@ -16,14 +16,14 @@ logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="Schema Backend Engine", version="1.0.0")
 
-def build_pydantic_models(sa_models: Dict[str, DeclarativeMeta]) -> Dict[str, Type[BaseModel]]:
+def build_pydantic_models(sa_models: Dict[str, any]) -> Dict[str, Type[BaseModel]]:
     """Create input Pydantic models for each SQLAlchemy model (exclude PK)."""
     p_models: Dict[str, Type[BaseModel]] = {}
     for name, sa_cls in sa_models.items():
         fields = {}
-        for col in sa_cls.__table__.columns:
+        columns = sa_cls.columns if not isinstance(sa_cls, DeclarativeMeta) else sa_cls.__table__.columns
+        for col in columns:
             if not col.primary_key:
-                # Use SQLAlchemy's python_type for simple mapping
                 fields[col.name] = (col.type.python_type, ...)
         p_models[name] = create_model(f"{name.capitalize()}In", **fields)
     return p_models
@@ -33,7 +33,7 @@ try:
     schema = load_schema()
 
     # 2) Build SQLAlchemy models in memory
-    sa_models = generate_models()             # dict: tableName -> SA class
+    sa_models = generate_models()             # dict: tableName -> SA class or Table
 
     # 3) Create DB tables
     Base.metadata.create_all(bind=engine)

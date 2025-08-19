@@ -51,6 +51,30 @@ def _valid_relationship_keys(Model) -> Set[str]:
     return {rel.key for rel in sa_inspect(Model).relationships}
 
 
+def _to_payload_dict(obj: Any) -> Dict[str, Any]:
+    """Support Pydantic v1 (.dict) and v2 (.model_dump)."""
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump(exclude_unset=True)  # pydantic v2
+    if hasattr(obj, "dict"):
+        return obj.dict(exclude_unset=True)        # pydantic v1
+    if isinstance(obj, dict):
+        return obj
+    return dict(obj)
+
+
+def _pyd_schema_dict(pyd_model: Any) -> Dict[str, Any]:
+    """Return an OpenAPI/JSON Schema dict for a Pydantic model (v1/v2)."""
+    if pyd_model is None:
+        return {}
+    # pydantic v2
+    if hasattr(pyd_model, "model_json_schema"):
+        return pyd_model.model_json_schema()
+    # pydantic v1
+    if hasattr(pyd_model, "schema"):
+        return pyd_model.schema()
+    return {}
+
+
 # -------------------------- route factory --------------------------
 
 def setup_routes(router: APIRouter, models: Dict[str, Any]):
@@ -84,11 +108,13 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
         Name: str = name
         Model: Any = model_class
 
-        response_model = pyd_out.get(Name) if isinstance(pyd_out, dict) else None
-        if response_model is None and isinstance(pyd_in, dict):
-            response_model = pyd_in.get(Name)
+        InModel = pyd_in.get(Name)       # Pydantic model for requests (if available)
+        OutModel = pyd_out.get(Name) or InModel  # Prefer explicit out; else fall back to in
+        response_model = OutModel
 
-        # --- tiny dependency providers to avoid non-serializable defaults in function signature ---
+        has_in_model = InModel is not None
+
+        # tiny dependency providers to avoid non-serializable defaults in function signature
         def _dep_model(m: Any = Model) -> Any:
             return m
 
@@ -101,6 +127,24 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
         def _dep_columns(m: Any = Model) -> Set[str]:
             return {c.name for c in m.__table__.columns}
 
+        # Prepare OpenAPI requestBody schema for clean Swagger when we have an input model.
+        create_openapi_extra = None
+        update_openapi_extra = None
+        if has_in_model:
+            schema_dict = _pyd_schema_dict(InModel)
+            if schema_dict:
+                create_openapi_extra = {
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": schema_dict
+                            }
+                        }
+                    }
+                }
+                update_openapi_extra = create_openapi_extra
+
         # ------------------ CREATE -------------------------------------------
         @router.post(
             f"/{Name}/",
@@ -108,18 +152,32 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             tags=[Name],
             summary=f"Create {Name[:-1] if Name.endswith('s') else Name}",
             description=f"Create a new `{Name}` record.",
+            openapi_extra=create_openapi_extra,
         )
         def create_item(
-            item: Any = Body(...),
+            # NOTE: Use plain dict for type checking; we inject correct schema via openapi_extra above.
+            item: Dict[str, Any] = Body(...),
             db: Session = Depends(get_db),
             model_name: str = Depends(get_model_name(Name)),
             Model_: Any = Depends(_dep_model),
             pyd_in_map: Dict[str, Any] = Depends(_dep_pyd_in),
         ):
-            payload = item.dict() if hasattr(item, "dict") else item
-            validated = validate_request_body(payload, model_name, pyd_in_map)
+            payload = _to_payload_dict(item)
+
+            # If we have a Pydantic model, (re-)validate into it for strong typing.
+            if has_in_model:
+                try:
+                    validated_obj = InModel(**payload)
+                    payload = _to_payload_dict(validated_obj)
+                except ValidationError as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid data: {e.errors()}")
+            else:
+                # Fallback: legacy map-based validation
+                validated = validate_request_body(payload, model_name, pyd_in_map)
+                payload = _to_payload_dict(validated)
+
             try:
-                obj = Model_(**validated.dict(exclude_unset=True))
+                obj = Model_(**payload)
                 db.add(obj)
                 db.commit()
                 db.refresh(obj)
@@ -216,22 +274,34 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             tags=[Name],
             summary=f"Update {Name[:-1] if Name.endswith('s') else Name}",
             description=f"Update an existing `{Name}` record by primary key.",
+            openapi_extra=update_openapi_extra,
         )
         def update_item(
             item_id: str,
-            item: Any = Body(...),
+            item: Dict[str, Any] = Body(...),
             db: Session = Depends(get_db),
             model_name: str = Depends(get_model_name(Name)),
             Model_: Any = Depends(_dep_model),
             pyd_in_map: Dict[str, Any] = Depends(_dep_pyd_in),
         ):
-            payload = item.dict() if hasattr(item, "dict") else item
-            validated = validate_request_body(payload, model_name, pyd_in_map)
             db_obj = db.get(Model_, item_id)
             if not db_obj:
                 raise HTTPException(status_code=404, detail="Item not found")
+
+            payload = _to_payload_dict(item)
+
+            if has_in_model:
+                try:
+                    validated_obj = InModel(**payload)
+                    payload = _to_payload_dict(validated_obj)
+                except ValidationError as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid data: {e.errors()}")
+            else:
+                validated = validate_request_body(payload, model_name, pyd_in_map)
+                payload = _to_payload_dict(validated)
+
             try:
-                for k, v in validated.dict(exclude_unset=True).items():
+                for k, v in payload.items():
                     setattr(db_obj, k, v)
                 db.commit()
                 db.refresh(db_obj)
