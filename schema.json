@@ -1,5 +1,5 @@
 {
-  "$schema": "schema_definitions/schema_v1.json",
+  "$schema": "schema_definitions/modelSchema.json",
   "tables": [
     {
       "tableName": "roles",

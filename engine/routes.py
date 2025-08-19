@@ -1,10 +1,12 @@
 # pyright: reportInvalidTypeForm=false
 # engine/routes.py
 import logging
-from typing import Any, Callable, Dict, List, Set
+from typing import Any, Callable, Dict, List, Set, Type
+from pydantic import BaseModel, create_model, ValidationError
+#from typing import Any, Callable, Dict, List, Set
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, ValidationError
+#from pydantic import BaseModel, ValidationError
 from sqlalchemy import asc, desc
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.exc import IntegrityError
@@ -86,27 +88,52 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
 
     logger.info("Initializing route setup with SQLAlchemy models: %s", list(sqlalchemy_models.keys()))
 
+    # inside setup_routes(...) loop:
     for name, model_class in sqlalchemy_models.items():
         Name: str = name
         Model: Any = model_class
 
-        InModel = pyd_in.get(Name)    # Pydantic model for request body
-        OutModel = pyd_out.get(Name) or InModel  # Pydantic model for responses
+        InModel = pyd_in.get(Name)
+        OutModel = pyd_out.get(Name) or InModel  # fallback is fine if InModel has from_attributes=True
 
         if InModel is None:
             logger.warning("No input Pydantic model for %s; request body will not be typed in OpenAPI.", Name)
 
-        # --- tiny dependency providers to avoid non-serializable defaults in function signature ---
-        def _dep_model(m: Any = Model) -> Any:
-            return m
+        # --- closure-based deps: no default class values in signatures ---
+        def make_dep_model(m: Any):
+            def _dep_model() -> Any:
+                return m
+            return _dep_model
 
-        def _dep_name(n: str = Name) -> str:
-            return n
+        def make_dep_name(n: str):
+            def _dep_name() -> str:
+                return n
+            return _dep_name
 
-        def _dep_columns(m: Any = Model) -> Set[str]:
-            return {c.name for c in m.__table__.columns}
+        def make_dep_columns(m: Any):
+            cols = {c.name for c in m.__table__.columns}
+            def _dep_columns() -> Set[str]:
+                return cols
+            return _dep_columns
 
-        # ------------------ CREATE -------------------------------------------
+        # --- typed list response model so /{Name}/ serializes items correctly ---
+        if OutModel is not None:
+            ListResponseModel = create_model(
+                f"{Name.capitalize()}ListResponse",
+                total=(int, ...),
+                limit=(int, ...),
+                offset=(int, ...),
+                items=(List[OutModel], ...),  # <- items will be coerced to OutModel
+            )
+        else:
+            ListResponseModel = create_model(
+                f"{Name.capitalize()}ListResponse",
+                total=(int, ...),
+                limit=(int, ...),
+                offset=(int, ...),
+                items=(List[dict], ...),  # last-resort fallback
+            )
+
         @router.post(
             f"/{Name}/",
             response_model=OutModel,
@@ -118,9 +145,9 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             ),
         )
         def create_item(
-            payload: InModel = Body(...),  # <-- typed per resource, renders inline schema
+            payload: InModel = Body(...),
             db: Session = Depends(get_db),
-            Model_: Any = Depends(_dep_model),
+            Model_: Any = Depends(make_dep_model(Model)),
         ):
             try:
                 obj = Model_(**_model_to_dict(payload))
@@ -132,9 +159,9 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
                 db.rollback()
                 raise HTTPException(status_code=400, detail=f"Database error: {str(e)}")
 
-        # ------------------ READ ALL (pagination + filters + includes + sort) -------
         @router.get(
             f"/{Name}/",
+            response_model=ListResponseModel,  # <- add a response model
             tags=[Name],
             summary=f"List {Name}",
             description=(
@@ -153,9 +180,9 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             limit: int = Query(100, ge=1, le=1000),
             offset: int = Query(0, ge=0),
             db: Session = Depends(get_db),
-            Model_: Any = Depends(_dep_model),
-            Name_: str = Depends(_dep_name),
-            column_names_: Set[str] = Depends(_dep_columns),
+            Model_: Any = Depends(make_dep_model(Model)),
+            Name_: str = Depends(make_dep_name(Name)),
+            column_names_: Set[str] = Depends(make_dep_columns(Model)),
         ):
             query = db.query(Model_)
 
@@ -185,7 +212,6 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             items = query.offset(offset).limit(limit).all()
             return {"total": total, "limit": limit, "offset": offset, "items": items}
 
-        # ------------------ READ ONE (with includes) ------------------------
         @router.get(
             f"/{Name}/{{item_id}}",
             response_model=OutModel,
@@ -197,38 +223,30 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             item_id: str,
             include: str | None = Query(None, description="Comma-separated relationships to eager load"),
             db: Session = Depends(get_db),
-            Model_: Any = Depends(_dep_model),
+            Model_: Any = Depends(make_dep_model(Model)),
         ):
             requested = _parse_include_param(include)
             valid = _valid_relationship_keys(Model_)
             options = [joinedload(getattr(Model_, r)) for r in requested if r in valid]
 
-            if options:
-                query = db.query(Model_).options(*options)
-                obj = query.get(item_id)  # SQLAlchemy <2 style
-            else:
-                obj = db.get(Model_, item_id)
-
+            # SQLAlchemy 2.0-style fetch with loader options:
+            obj = db.get(Model_, item_id, options=tuple(options)) if options else db.get(Model_, item_id)
             if not obj:
                 raise HTTPException(status_code=404, detail="Item not found")
             return obj
 
-        # ------------------ UPDATE -------------------------------------------
         @router.put(
             f"/{Name}/{{item_id}}",
             response_model=OutModel,
             tags=[Name],
             summary=f"Update {Name[:-1] if Name.endswith('s') else Name}",
-            description=(
-                f"Update an existing `{Name}` record by primary key.\n\n"
-                "Send a **bare JSON object**."
-            ),
+            description=(f"Update an existing `{Name}` record by primary key.\n\nSend a **bare JSON object**."),
         )
         def update_item(
             item_id: str,
-            payload: InModel = Body(...),  # <-- typed per resource, renders inline schema
+            payload: InModel = Body(...),
             db: Session = Depends(get_db),
-            Model_: Any = Depends(_dep_model),
+            Model_: Any = Depends(make_dep_model(Model)),
         ):
             db_obj = db.get(Model_, item_id)
             if not db_obj:
@@ -243,7 +261,6 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
                 db.rollback()
                 raise HTTPException(status_code=400, detail=f"Database error: {str(e)}")
 
-        # ------------------ DELETE -------------------------------------------
         @router.delete(
             f"/{Name}/{{item_id}}",
             tags=[Name],
@@ -253,7 +270,7 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
         def delete_item(
             item_id: str,
             db: Session = Depends(get_db),
-            Model_: Any = Depends(_dep_model),
+            Model_: Any = Depends(make_dep_model(Model)),
         ):
             db_obj = db.get(Model_, item_id)
             if not db_obj:
@@ -261,3 +278,4 @@ def setup_routes(router: APIRouter, models: Dict[str, Any]):
             db.delete(db_obj)
             db.commit()
             return {"status": "deleted"}
+        
