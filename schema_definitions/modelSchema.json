@@ -1,88 +1,112 @@
 {
-    "$schema": "http://json-schema.org/draft-07/schema#",
-    "type": "object",
-    "required": ["tables"],
-    "properties": {
-        "$schema": {
-            "type": "string"
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "schema_definitions/modelSchema.json",
+  "title": "Generator Model Schema",
+  "description": "Canonical meta format produced by the Draft-07 → Meta converter and consumed by the engine.",
+  "type": "object",
+  "required": ["tables"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "tables": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/Table" }
+    }
+  },
+  "definitions": {
+    "Table": {
+      "type": "object",
+      "required": ["tableName", "columns"],
+      "additionalProperties": false,
+      "properties": {
+        "tableName": { "type": "string", "minLength": 1 },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/Column" }
         },
-        "schemaVersion": {
-            "type": "string",
-            "pattern": "^v[0-9]+(\\.[0-9]+)*$"
+        "primaryKey": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
         },
-        "tables": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "required": ["tableName", "columns"],
-                "properties": {
-                    "tableName": {
-                        "type": "string",
-                        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-                    },
-                    "columns": {
-                        "type": "array",
-                        "minItems": 1,
-                        "items": {
-                            "type": "object",
-                            "required": ["columnName", "dataType"],
-                            "properties": {
-                                "columnName": {
-                                    "type": "string",
-                                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-                                },
-                                "dataType": {
-                                    "type": "string",
-                                    "enum": ["UUID", "VARCHAR", "INTEGER", "TIMESTAMP"]
-                                },
-                                "length": { "type": "integer", "minimum": 1 },
-                                "isNullable": { "type": "boolean" },
-                                "isUnique": { "type": "boolean" },
-                                "defaultValue": {
-                                    "type": ["string", "number", "boolean", "null"]
-                                }
-                            },
-                            "additionalProperties": false
-                        }
-                    },
-                    "primaryKey": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-                        },
-                        "minItems": 1
-                    },
-                    "foreignKeys": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "columnName": {
-                                    "type": "string",
-                                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-                                },
-                                "referencedTable": {
-                                    "type": "string",
-                                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-                                },
-                                "referencedColumn": {
-                                    "type": "string",
-                                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-                                },
-                                "relationshipName": {
-                                    "type": "string",
-                                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
-                                }
-                            },
-                            "required": ["columnName", "referencedTable", "referencedColumn"],
-                            "additionalProperties": false
-                        }
-                    }
-                },
-                "additionalProperties": false
-            }
+        "foreignKeys": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ForeignKey" }
+        },
+        "indexes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Index" }
         }
+      }
     },
-    "additionalProperties": false
+    "Column": {
+      "type": "object",
+      "required": ["columnName", "dataType"],
+      "additionalProperties": false,
+      "properties": {
+        "columnName": { "type": "string", "minLength": 1 },
+        "dataType": {
+          "type": "string",
+          "enum": [
+            "UUID",
+            "VARCHAR",
+            "TEXT",
+            "INTEGER",
+            "BIGINT",
+            "DECIMAL",
+            "FLOAT",
+            "BOOLEAN",
+            "DATE",
+            "TIMESTAMP",
+            "JSON",
+            "BLOB"
+          ]
+        },
+        "length": { "type": "integer", "minimum": 1 },
+        "precision": { "type": "integer", "minimum": 1 },
+        "scale": { "type": "integer", "minimum": 0 },
+        "isNullable": { "type": "boolean" },
+        "isUnique": { "type": "boolean" },
+        "defaultValue": {}
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "dataType": { "const": "VARCHAR" } }, "required": ["dataType"] },
+          "then": { "required": ["length"] }
+        },
+        {
+          "if": { "properties": { "dataType": { "const": "DECIMAL" } }, "required": ["dataType"] },
+          "then": { "required": ["precision", "scale"] }
+        }
+      ]
+    },
+    "ForeignKey": {
+      "type": "object",
+      "required": ["columnName", "referencedTable", "referencedColumn"],
+      "additionalProperties": false,
+      "properties": {
+        "columnName": { "type": "string", "minLength": 1 },
+        "referencedTable": { "type": "string", "minLength": 1 },
+        "referencedColumn": { "type": "string", "minLength": 1 },
+        "relationshipName": { "type": "string", "minLength": 1 }
+      }
+    },
+    "Index": {
+      "type": "object",
+      "required": ["name", "columns"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "unique": { "type": "boolean" }
+      }
+    }
+  }
 }

@@ -4,77 +4,9 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-# ================================
-# Logging / diagnostics
-# ================================
-class MsgLog:
-    def __init__(self) -> None:
-        self.coercions: List[Dict[str, Any]] = []
-        self.fallbacks: List[Dict[str, Any]] = []
-        self.fk_fallbacks: List[Dict[str, Any]] = []
-        self.fk_unresolved: List[Dict[str, Any]] = []
-        self.default_normalizations: List[Dict[str, Any]] = []
-        self.normalizations: List[Dict[str, Any]] = []  # pointer/relationship notes
-        self.skipped: List[Dict[str, Any]] = []         # explicit “ignored” log
-
-    def add_coercion(self, table: str, column: str, src: str, dst: str, note: str) -> None:
-        self.coercions.append({"table": table, "column": column, "source": src, "target": dst, "note": note})
-
-    def add_fallback(self, table: str, column: str, reason: str, decided: str) -> None:
-        self.fallbacks.append({"table": table, "column": column, "reason": reason, "decided": decided})
-
-    def add_fk_fallback(self, table: str, column: str, target_table: str, target_col: str, decided: str) -> None:
-        self.fk_fallbacks.append({
-            "table": table, "column": column,
-            "target_table": target_table, "target_column": target_col,
-            "decided": decided
-        })
-
-    def add_fk_unresolved(self, table: str, column: str, hints: Dict[str, Any]) -> None:
-        self.fk_unresolved.append({"table": table, "column": column, "hints": hints})
-
-    def add_default_norm(self, table: str, column: str, original: Any, normalized: Any) -> None:
-        self.default_normalizations.append({
-            "table": table, "column": column, "original": original, "normalized": normalized
-        })
-
-    def add_normalization(self, table: str, column: str, note: str) -> None:
-        self.normalizations.append({"table": table, "column": column, "note": note})
-
-    def add_skipped(self, table: str, column: str, reason: str) -> None:
-        self.skipped.append({"table": table, "column": column, "reason": reason})
-
-    def print_summary(self) -> None:
-        def _print_list(title: str, items: List[Dict[str, Any]]) -> None:
-            if not items:
-                return
-            print(f"\n[converter] {title}: {len(items)}")
-            for it in items:
-                print("  - " + json.dumps(it, ensure_ascii=False))
-
-        _print_list("Coercions (type conversions)", self.coercions)
-        _print_list("Fallbacks (unresolved value conversions)", self.fallbacks)
-        _print_list("FK fallbacks (couldn't infer type from target)", self.fk_fallbacks)
-        _print_list("Unresolved FK hints", self.fk_unresolved)
-        _print_list("Default value normalizations", self.default_normalizations)
-        _print_list("Pointer/relationship normalizations", self.normalizations)
-        _print_list("Skipped fields (intentionally ignored)", self.skipped)
-
-    def to_json(self) -> Dict[str, Any]:
-        return {
-            "coercions": self.coercions,
-            "fallbacks": self.fallbacks,
-            "fk_fallbacks": self.fk_fallbacks,
-            "fk_unresolved": self.fk_unresolved,
-            "default_normalizations": self.default_normalizations,
-            "normalizations": self.normalizations,
-            "skipped": self.skipped,
-        }
-
-
-# ================================
+# -----------------------------
 # JSON Pointer helpers / merging
-# ================================
+# -----------------------------
 def _deep_get(doc: dict, pointer: str) -> Optional[dict]:
     if not pointer or not pointer.startswith("#/"):
         return None
@@ -147,52 +79,50 @@ def _extract_scalar_constraints(prop: dict, full_doc: dict) -> dict:
     return {k: v for k, v in effective.items() if k in keep}
 
 
-# ================================
+# -----------------------------
 # Mapping helpers
-# ================================
-def _map_type_to_column(constraints: dict) -> tuple[str, Optional[int], str]:
+# -----------------------------
+def _map_type_to_column(constraints: dict) -> tuple[str, int | None]:
     """
     Map JSON-Schema constraints -> meta dataType (+ optional length).
-    Returns (dataType, length, src_repr)
     """
     typ = constraints.get("type")
     fmt = constraints.get("format")
     max_len = constraints.get("maxLength")
 
-    src_repr = f"type={typ},format={fmt}"  # for logging
-
     # Specific string formats
     if fmt == "uuid":
-        return "UUID", None, src_repr
+        return "UUID", None
     if fmt == "date-time":
-        return "TIMESTAMP", None, src_repr
+        return "TIMESTAMP", None
     if fmt == "date":
-        return "DATE", None, src_repr
+        return "DATE", None
     if fmt == "email":
-        return "VARCHAR", int(max_len) if isinstance(max_len, int) else 255, src_repr
+        return "VARCHAR", int(max_len) if isinstance(max_len, int) else 255
 
     # Primitives
     if typ == "string":
-        return "VARCHAR", int(max_len) if isinstance(max_len, int) else 255, src_repr
+        return "VARCHAR", int(max_len) if isinstance(max_len, int) else 255
     if typ == "integer":
-        return "INTEGER", None, src_repr
+        return "INTEGER", None
     if typ == "number":
-        return "FLOAT", None, src_repr
+        return "FLOAT", None
     if typ == "boolean":
-        return "BOOLEAN", None, src_repr
+        return "BOOLEAN", None
 
-    # Objects / arrays -> store as JSON (unless caller opts to skip)
+    # Objects / arrays -> store as JSON
     if typ in {"object", "array"}:
-        return "JSON", None, src_repr
+        return "JSON", None
 
     # Fallback (unknown / unconstrained) -> TEXT
-    return "TEXT", None, src_repr
+    return "TEXT", None
 
 
 # ---- engine type gating / coercion ----
-# NOTE: Your *destination meta* may only allow UUID/VARCHAR/INTEGER/TIMESTAMP.
-# We therefore coerce others in "core" mode so validation passes.
-ENGINE_ALLOWED = {"UUID", "VARCHAR", "INTEGER", "TIMESTAMP"}
+# By default we keep to a conservative set, but now we explicitly allow JSON/BOOLEAN/TEXT
+# because your generator supports them.
+ENGINE_ALLOWED = {"UUID", "VARCHAR", "INTEGER", "TIMESTAMP", "BOOLEAN", "JSON", "TEXT"}
+
 
 def _coerce_for_engine(dt: str, length: Optional[int]) -> tuple[str, Optional[int], Optional[str]]:
     """
@@ -202,16 +132,12 @@ def _coerce_for_engine(dt: str, length: Optional[int]) -> tuple[str, Optional[in
     if dt in ENGINE_ALLOWED:
         return dt, length, None
 
+    # Common coercions
     if dt == "DATE":
         return "TIMESTAMP", length, "coerced DATE → TIMESTAMP"
     if dt == "FLOAT":
-        return "VARCHAR", 64, "coerced FLOAT/NUMBER → VARCHAR(64)"
-    if dt == "BOOLEAN":
-        return "INTEGER", length, "coerced BOOLEAN → INTEGER (store 0/1)"
-    if dt == "JSON":
-        return "VARCHAR", max(length or 2048, 2048), "coerced JSON → VARCHAR(2048)"
-    if dt == "TEXT":
-        return "VARCHAR", max(length or 2048, 2048), "coerced TEXT → VARCHAR(2048)"
+        # Avoid precision issues in generic engines; store as string
+        return "VARCHAR", 64, "coerced FLOAT → VARCHAR(64)"
 
     # catch-all
     return "VARCHAR", length or 255, f"coerced {dt} → VARCHAR({length or 255})"
@@ -224,35 +150,49 @@ def _normalize_default(value: Any) -> Any:
 
 
 def _def_name_from_ref(ref: str) -> Optional[str]:
+    # "#/definitions/users" -> "users"
     if not isinstance(ref, str):
         return None
     prefix = "#/definitions/"
     if ref.startswith(prefix):
-        return ref[len(prefix):]
+        return ref[len(prefix) :]
     return None
 
 
 def _derive_relationship_name(col_name: str, ref_table: str) -> str:
+    # Prefer foo_id -> foo
     if col_name.endswith("_id") and len(col_name) > 3:
         return col_name[:-3]
+    # Naive singularization (roles -> role, users -> user)
     if ref_table.endswith("s") and len(ref_table) > 1:
         return ref_table[:-1]
     return ref_table
 
 
-# ================================
-# FK pointer normalization helpers
-# ================================
+# -----------------------------
+# (Optional) FK pointer normalization helpers
+# -----------------------------
 def _parse_ref_pointer(ptr: str) -> tuple[Optional[str], Optional[str]]:
+    """
+    Accepts forms like:
+      "#/definitions/users"
+      "#/definitions/users/properties/id"
+      "definitions/users/properties/id"
+      "users/properties/id"
+      "definitions.users.properties.id"
+    Returns (table, column?) where column may be None.
+    """
     if not isinstance(ptr, str):
         return None, None
     s = ptr.strip()
     if not s:
         return None, None
+    # unify separators
     s = s.lstrip("#/").replace(".", "/")
     parts = [p for p in s.split("/") if p]
+    # trim up to 'definitions' if present
     if "definitions" in parts:
-        parts = parts[parts.index("definitions") + 1:]
+        parts = parts[parts.index("definitions") + 1 :]
     table = parts[0] if parts else None
     column = None
     if "properties" in parts:
@@ -265,10 +205,16 @@ def _parse_ref_pointer(ptr: str) -> tuple[Optional[str], Optional[str]]:
 def _normalize_fk_hints(
     x_ref_table: Optional[str], x_ref_column: Optional[str], raw_ref: Optional[str]
 ) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """
+    Normalize FK targets from any combination of x-refTable/x-refColumn/$ref.
+
+    Returns (fk_table, fk_column, note) where note is a human-friendly log message if normalization occurred.
+    """
     note = None
     fk_table: Optional[str] = None
     fk_column: Optional[str] = None
 
+    # 1) Prefer explicit x-refTable / x-refColumn
     if x_ref_table:
         t1, c1 = _parse_ref_pointer(x_ref_table)
         if t1:
@@ -276,7 +222,7 @@ def _normalize_fk_hints(
                 note = f"normalized x-refTable '{x_ref_table}' → '{t1}'"
             fk_table = t1
         else:
-            fk_table = x_ref_table
+            fk_table = x_ref_table  # assume it's already a plain name
 
         if x_ref_column:
             t2, c2 = _parse_ref_pointer(x_ref_column)
@@ -292,14 +238,16 @@ def _normalize_fk_hints(
                 else:
                     fk_column = x_ref_column
         elif c1:
-            fk_column = c1
+            fk_column = c1  # column embedded in x-refTable pointer
 
+    # 2) Else, infer from $ref
     if fk_table is None and isinstance(raw_ref, str):
         t3, c3 = _parse_ref_pointer(raw_ref)
         if t3:
             fk_table = t3
             fk_column = c3 or fk_column
 
+    # Default column
     if fk_table and not fk_column:
         fk_column = "id"
 
@@ -309,33 +257,36 @@ def _normalize_fk_hints(
 def _infer_fk_datatype_from_target(
     full_doc: dict, target_table: str, target_col: str = "id"
 ) -> tuple[str, int | None]:
+    """
+    Look up the target table's target_col schema (e.g., users.properties.id)
+    and map it to a concrete meta dataType.
+    Fallback to UUID if unknown.
+    """
     defs = (full_doc or {}).get("definitions") or {}
     tdef = defs.get(target_table) or {}
     props = tdef.get("properties") or {}
     col_schema = props.get(target_col)
     if isinstance(col_schema, dict):
         constraints = _extract_scalar_constraints(col_schema, full_doc=full_doc)
-        dt, ln, _src = _map_type_to_column(constraints)
-        return dt, ln
+        return _map_type_to_column(constraints)
+    # Fallback that matches your example meta
     return "UUID", None
 
 
-# ================================
+# -----------------------------
 # Main conversion
-# ================================
+# -----------------------------
 def convert_draft7_entities_to_meta(
     draft: dict,
     schema_uri_for_output: str = "schema_definitions/modelSchema.json",
     verbose: bool = True,
-    type_mode: str = "core",      # 'core' or 'full'
+    type_mode: str = "core",  # 'core' or 'full' (we keep the same behavior; core = ENGINE_ALLOWED gate)
     fk_normalize: bool = False,
-    msglog: Optional[MsgLog] = None,
-    map_objects_as_json: bool = True,  # map object/array to JSON or skip+log
-) -> tuple[dict, MsgLog]:
-    log = msglog or MsgLog()
+) -> dict:
     definitions = draft.get("definitions") or {}
     tables_meta: List[dict] = []
 
+    # Include ALL definitions: root.properties first (for ordering), then any remaining defs
     root_props = list((draft.get("properties") or {}).keys())
     defs_keys = list(definitions.keys())
     ordering = root_props + [k for k in defs_keys if k not in root_props]
@@ -372,22 +323,10 @@ def convert_draft7_entities_to_meta(
             print(f"→ Entity: {table_name}  (PK: {pk if pk else '—'}, source: {origin})")
 
         for col_name, prop in props.items():
-            # If object/array without FK hints and user opted NOT to map as JSON → skip + LOG
-            prop_type = prop.get("type")
-            if (prop_type in {"array", "object"}) and not any(k in prop for k in ("x-refTable", "x-refColumn", "$ref")):
-                if not map_objects_as_json:
-                    log.add_skipped(table_name, col_name, reason=f"{prop_type} without FK hints (skipped)")
-                    if verbose:
-                        print(f"    • {col_name}: skipped ({prop_type} without FK hints)")
-                    continue
-                # else: allow flow to proceed (we’ll map to JSON and log a fallback later)
-
-            # Constraints
+            # If it's an object/array with no FK hints, we still include it as JSON now
             constraints = _extract_scalar_constraints(prop, full_doc=draft)
-            src_typ = constraints.get("type")
-            src_fmt = constraints.get("format")
 
-            # FK resolution
+            # Detect FK source (normalized only if flag set)
             raw_ref = prop.get("$ref")
             if fk_normalize:
                 fk_table, fk_column, norm_note = _normalize_fk_hints(
@@ -398,6 +337,7 @@ def convert_draft7_entities_to_meta(
             else:
                 fk_table = constraints.get("x-refTable")
                 fk_column = constraints.get("x-refColumn") or None
+                # fallback to simple #/definitions/<name>
                 if fk_table is None:
                     ref_def_name = _def_name_from_ref(raw_ref) if isinstance(raw_ref, str) else None
                     if ref_def_name:
@@ -406,55 +346,23 @@ def convert_draft7_entities_to_meta(
                             fk_column = "id"
                 norm_note = None
 
-            if norm_note:
-                log.add_normalization(table_name, col_name, norm_note)
-
-            # Type mapping
+            # Map data type for the column
             if fk_table:
                 data_type, length = _infer_fk_datatype_from_target(draft, fk_table, fk_column or "id")
-                if data_type == "UUID" and (src_typ or src_fmt):
-                    log.add_fk_fallback(table_name, col_name, fk_table, fk_column or "id", decided="UUID")
             else:
-                data_type, length, _src_repr = _map_type_to_column(constraints)
+                data_type, length = _map_type_to_column(constraints)
 
-                # Fallback cases recorded:
-                if data_type == "TEXT" and src_typ is None and src_fmt is None:
-                    log.add_fallback(table_name, col_name, reason="no type/format", decided="TEXT")
-                if data_type == "VARCHAR" and (src_typ == "string") and ("maxLength" not in constraints):
-                    log.add_fallback(table_name, col_name, reason="string without maxLength", decided="VARCHAR(255)")
-                if data_type == "JSON" and (src_typ in {"object", "array"}):
-                    log.add_fallback(table_name, col_name, reason=f"{src_typ} stored as JSON", decided="JSON")
-
-            # Engine coercion to your *meta* allowed set
+            # Keep real types if 'full'; in 'core' we gate to ENGINE_ALLOWED (now includes JSON/BOOLEAN/TEXT)
             note = None
             if type_mode == "core":
-                coerced_type, coerced_len, note = _coerce_for_engine(data_type, length)
-                if note:
-                    log.add_coercion(
-                        table=table_name,
-                        column=col_name,
-                        src=(f"{data_type}({length})" if (length and data_type == "VARCHAR") else data_type),
-                        dst=(f"{coerced_type}({coerced_len})" if (coerced_len and coerced_type == "VARCHAR") else coerced_type),
-                        note=note,
-                    )
-                data_type, length = coerced_type, coerced_len
+                data_type, length, note = _coerce_for_engine(data_type, length)
 
-            # Hinted FK but unresolved entirely
-            if (prop.get("$ref") or constraints.get("x-refTable") or constraints.get("x-refColumn")) and not fk_table:
-                log.add_fk_unresolved(
-                    table_name,
-                    col_name,
-                    {"$ref": prop.get("$ref"), "x-refTable": constraints.get("x-refTable"), "x-refColumn": constraints.get("x-refColumn")},
-                )
-
-            # Column meta
+            # Build column meta
             is_pk = col_name in pk
             not_null = (col_name in required) or is_pk
             is_unique = bool(constraints.get("x-unique", False))
-            default_val_raw = constraints.get("default")
-            default_val = _normalize_default(default_val_raw) if default_val_raw is not None else None
-            if default_val_raw is not None and default_val_raw != default_val:
-                log.add_default_norm(table_name, col_name, original=default_val_raw, normalized=default_val)
+            default_val = constraints.get("default")
+            default_val = _normalize_default(default_val) if default_val is not None else None
 
             col_meta: Dict[str, Any] = {
                 "columnName": col_name,
@@ -471,6 +379,7 @@ def convert_draft7_entities_to_meta(
 
             columns.append(col_meta)
 
+            # Logging for column
             if verbose:
                 flags = []
                 if is_pk:
@@ -484,9 +393,11 @@ def convert_draft7_entities_to_meta(
                 msg = f"    • {col_name}: {data_type}{lens}  [{', '.join(flags)}]"
                 if note:
                     msg += f"  [{note}]"
+                if norm_note:
+                    msg += f"  [{norm_note}]"
                 print(msg)
 
-            # FK meta
+            # Build FK meta if applicable
             if fk_table:
                 rel_name = constraints.get("x-relationshipName")
                 rel = rel_name or _derive_relationship_name(col_name, fk_table)
@@ -515,15 +426,12 @@ def convert_draft7_entities_to_meta(
 
         tables_meta.append(table_meta)
 
-    if verbose:
-        log.print_summary()
-
-    return {"$schema": schema_uri_for_output, "tables": tables_meta}, log
+    return {"$schema": schema_uri_for_output, "tables": tables_meta}
 
 
-# ================================
+# -----------------------------
 # CLI
-# ================================
+# -----------------------------
 if __name__ == "__main__":
     import argparse
 
@@ -539,36 +447,23 @@ if __name__ == "__main__":
         "--types",
         choices=["core", "full"],
         default="core",
-        help="Type set for meta output: 'core' (UUID/VARCHAR/INTEGER/TIMESTAMP only) or 'full' (richer types).",
+        help="Type set for meta output: 'core' (engine-allowed) or 'full' (richer types).",
     )
     ap.add_argument(
         "--fk-normalize",
         action="store_true",
         help="Normalize x-refTable/x-refColumn/$ref pointers to clean table/column names (opt-in)",
     )
-    ap.add_argument(
-        "--no-map-objects",
-        dest="map_objects_as_json",
-        action="store_false",
-        help="Do not map object/array fields to JSON; instead skip them and log under 'Skipped fields'.",
-    )
     ap.add_argument("-q", "--quiet", action="store_true", help="Suppress per-entity/field messages")
-    ap.add_argument("--log", help="Write structured diagnostics JSON to this path (optional)")
     args = ap.parse_args()
 
     src = json.loads(Path(args.input).read_text(encoding="utf-8"))
-    meta, msglog = convert_draft7_entities_to_meta(
+    meta = convert_draft7_entities_to_meta(
         src,
         schema_uri_for_output=args.schema_uri,
         verbose=not args.quiet,
         type_mode=args.types,
         fk_normalize=args.fk_normalize,
-        map_objects_as_json=args.map_objects_as_json,
     )
     Path(args.output).write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"Wrote {args.output}")
-
-    if args.log:
-        Path(args.log).write_text(json.dumps(msglog.to_json(), indent=2), encoding="utf-8")
-        if not args.quiet:
-            print(f"Wrote diagnostics log to {args.log}")

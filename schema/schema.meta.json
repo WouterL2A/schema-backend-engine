@@ -1,5 +1,5 @@
 {
-  "$schema": "schema_definitions\\modelSchema.json",
+  "$schema": "schema_definitions/modelSchema.json",
   "tables": [
     {
       "tableName": "roles",
@@ -48,6 +48,16 @@
           "dataType": "TIMESTAMP",
           "isNullable": true,
           "defaultValue": "now"
+        },
+        {
+          "columnName": "roles",
+          "dataType": "JSON",
+          "isNullable": true
+        },
+        {
+          "columnName": "permissions",
+          "dataType": "JSON",
+          "isNullable": true
         }
       ],
       "primaryKey": [
@@ -189,6 +199,10 @@
         {
           "columnName": "version",
           "dataType": "INTEGER"
+        },
+        {
+          "columnName": "form_schema",
+          "dataType": "JSON"
         },
         {
           "columnName": "is_active",
@@ -677,6 +691,10 @@
         {
           "columnName": "legal_entity_id",
           "dataType": "UUID"
+        },
+        {
+          "columnName": "data",
+          "dataType": "JSON"
         },
         {
           "columnName": "created_at",

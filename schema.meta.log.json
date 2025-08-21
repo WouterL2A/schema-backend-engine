@@ -1,0 +1,559 @@
+{
+  "coercions": [],
+  "fallbacks": [
+    {
+      "table": "users",
+      "column": "roles",
+      "reason": "array stored as JSON",
+      "decided": "JSON"
+    },
+    {
+      "table": "users",
+      "column": "permissions",
+      "reason": "array stored as JSON",
+      "decided": "JSON"
+    },
+    {
+      "table": "legal_entity_type",
+      "column": "name",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "legal_entity_type",
+      "column": "description",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "legal_entity_type",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "legal_entity_type",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "form_definition",
+      "column": "name",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "form_definition",
+      "column": "form_schema",
+      "reason": "object stored as JSON",
+      "decided": "JSON"
+    },
+    {
+      "table": "form_definition",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "form_definition",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "process_definition",
+      "column": "name",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "process_definition",
+      "column": "description",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "process_definition",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "process_definition",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_definition",
+      "column": "name",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_definition",
+      "column": "description",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_definition",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_definition",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_field_behavior",
+      "column": "field_name",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_field_behavior",
+      "column": "action_context",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_field_behavior",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_field_behavior",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "workflow_state",
+      "column": "name",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "workflow_state",
+      "column": "description",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "workflow_state",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "workflow_state",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "workflow_transition",
+      "column": "condition",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "workflow_transition",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "workflow_transition",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "legal_entity",
+      "column": "name",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "legal_entity",
+      "column": "email",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "legal_entity",
+      "column": "phone_number",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "legal_entity",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "legal_entity",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "process_instance",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "process_instance",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "form_entry",
+      "column": "data",
+      "reason": "object stored as JSON",
+      "decided": "JSON"
+    },
+    {
+      "table": "form_entry",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "form_entry",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_instance",
+      "column": "status",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_instance",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_instance",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "document_upload",
+      "column": "field_name",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "document_upload",
+      "column": "storage_type",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "document_upload",
+      "column": "storage_path",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "document_upload",
+      "column": "uploaded_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "document_upload",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "document_upload",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_user_access",
+      "column": "user_id",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_user_access",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "task_user_access",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    }
+  ],
+  "fk_fallbacks": [
+    {
+      "table": "user_roles",
+      "column": "user_id",
+      "target_table": "users",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "user_roles",
+      "column": "role_id",
+      "target_table": "roles",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "sessions",
+      "column": "user_id",
+      "target_table": "users",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "task_definition",
+      "column": "process_definition_id",
+      "target_table": "process_definition/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "task_field_behavior",
+      "column": "task_definition_id",
+      "target_table": "task_definition/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "task_field_behavior",
+      "column": "form_definition_id",
+      "target_table": "form_definition/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "workflow_transition",
+      "column": "from_state_id",
+      "target_table": "workflow_state/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "workflow_transition",
+      "column": "to_state_id",
+      "target_table": "workflow_state/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "legal_entity",
+      "column": "type_id",
+      "target_table": "legal_entity_type/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "process_instance",
+      "column": "definition_id",
+      "target_table": "process_definition/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "process_instance",
+      "column": "legal_entity_id",
+      "target_table": "legal_entity/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "process_instance",
+      "column": "current_state_id",
+      "target_table": "workflow_state/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "form_entry",
+      "column": "form_definition_id",
+      "target_table": "form_definition/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "form_entry",
+      "column": "process_instance_id",
+      "target_table": "process_instance/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "form_entry",
+      "column": "legal_entity_id",
+      "target_table": "legal_entity/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "task_instance",
+      "column": "task_definition_id",
+      "target_table": "task_definition/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "task_instance",
+      "column": "process_instance_id",
+      "target_table": "process_instance/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "document_upload",
+      "column": "form_entry_id",
+      "target_table": "form_entry/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "task_user_access",
+      "column": "task_instance_id",
+      "target_table": "task_instance/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    }
+  ],
+  "fk_unresolved": [],
+  "default_normalizations": [
+    {
+      "table": "roles",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "users",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "user_roles",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "sessions",
+      "column": "issued_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "legal_entity_type",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "form_definition",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "process_definition",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "task_definition",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "task_field_behavior",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "workflow_state",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "workflow_transition",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "legal_entity",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "process_instance",
+      "column": "started_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "form_entry",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "task_instance",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "document_upload",
+      "column": "uploaded_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "document_upload",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "task_user_access",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    }
+  ],
+  "normalizations": [],
+  "skipped": []
+}

@@ -1,16 +1,35 @@
+from __future__ import annotations
+import os
+from functools import lru_cache
+from typing import Generator
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./app.db"
+load_dotenv()
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}  # For SQLite
-)
+class Settings:
+    DATABASE_URL: str
+    DIALECT: str
+    LOG_LEVEL: str
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    def __init__(self) -> None:
+        self.DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+        self.DIALECT = os.getenv("DIALECT", "sqlite").lower()
+        self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
-def get_db():
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+_settings = get_settings()
+
+# echo can be toggled via LOG_LEVEL if you like
+engine = create_engine(_settings.DATABASE_URL, pool_pre_ping=True, future=True)
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, future=True)
+
+def get_db() -> Generator:
     db = SessionLocal()
     try:
         yield db
