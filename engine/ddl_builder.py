@@ -1,3 +1,4 @@
+# engine/ddl_builder.py
 from __future__ import annotations
 from typing import Dict, Any, Tuple, Optional, List
 from sqlalchemy import Column, ForeignKey, func
@@ -13,14 +14,25 @@ def _default_kwargs(meta_col: MetaCol, data_type: str) -> dict:
         "nullable": bool(meta_col.isNullable) if meta_col.isNullable is not None else False,
         "unique": bool(meta_col.isUnique) if meta_col.isUnique is not None else False,
     }
-    # Handle default "now" for TIMESTAMP/DATE as server_default
-    if isinstance(meta_col.defaultValue, str) and meta_col.defaultValue.lower() == "now":
+
+    dv = meta_col.defaultValue
+
+    # Normalize common timestamp/date "now" spellings
+    def _is_now(val: object) -> bool:
+        if not isinstance(val, str):
+            return False
+        v = val.strip().lower()
+        return v in {"now", "now()", "current_timestamp", "current_timestamp()"}
+
+    if _is_now(dv):
         if data_type.upper() == "TIMESTAMP":
             kwargs["server_default"] = func.now()
         elif data_type.upper() == "DATE":
             kwargs["server_default"] = func.current_date()
-    elif meta_col.defaultValue is not None:
-        kwargs["default"] = meta_col.defaultValue
+    elif dv is not None:
+        # For literal defaults, use SQLAlchemy's client-side default
+        kwargs["default"] = dv
+
     return kwargs
 
 def _build_columns_for_table(

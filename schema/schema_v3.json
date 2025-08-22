@@ -388,6 +388,15 @@
           "type": "string",
           "format": "uuid"
         },
+        "process_definition_id": {
+          "type": "string",
+          "format": "uuid",
+          "$ref": "#/definitions/process_definition/properties/id",
+          "refTable": "process_definition",
+          "refColumn": "id",
+          "relationshipName": "process_definition",
+          "description": "FK to process_definition.id"
+        },
         "name": {
           "type": "string",
           "minLength": 1
@@ -413,6 +422,7 @@
       },
       "required": [
         "id",
+        "process_definition_id",
         "name"
       ],
       "primaryKey": [
