@@ -14,6 +14,7 @@ from engine.meta_models import ModelMeta
 from engine.ddl_builder import create_all_from_meta
 from engine.routes import build_crud_router
 from engine.migrate_additive import plan_and_apply_additive  # safety-gated below
+from engine.schema_guard import diff_schema  # NEW
 
 settings = get_settings()
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL, logging.INFO))
@@ -83,8 +84,6 @@ def _sanitize_meta(meta: ModelMeta) -> ModelMeta:
     return meta_fixed
 
 # ---- Load meta (path overridable) ----
-# Recommended: set MODEL_META_PATH to your compiled IR, e.g.:
-#   set MODEL_META_PATH=C:\GitHub\Schema_Meta_System\meta\modelSchema.json
 META_PATH = os.getenv("MODEL_META_PATH", "schema/schema.meta.json")
 try:
     meta_path = Path(META_PATH).resolve()
@@ -128,34 +127,43 @@ except Exception as e:
     logger.error("DDL/model creation failed: %s", e)
     raise
 
-# ---- SAFETY-GATED ADDITIVE MIGRATION -----------------------------------------
-# Plan only:
-#   set ENGINE_APPLY_ADDITIVE_PLAN=1
-# Apply (requires *all* of):
-#   set ENGINE_APPLY_ADDITIVE=1
-#   set ENGINE_APPLY_ADDITIVE_ACK=<first 8 of meta SHA256 shown by plan>   (e.g. %s)
-#   set ENGINE_ALLOW_REMOTE=1          (only if DB is not localhost/sqlite)
-#   set ENGINE_ALLOW_NONEMPTY=1        (only if DB had tables before start)
-#
-# These interlocks prevent accidental use by new users.
+# ---- SAFETY-GATED ADDITIVE MIGRATION + FAIL-FAST GUARD -----------------------
+# Flags:
+#   ENGINE_APPLY_ADDITIVE_PLAN=1   -> print plan & exit (no server)
+#   ENGINE_APPLY_ADDITIVE=1        -> apply additive, requires:
+#       ENGINE_APPLY_ADDITIVE_ACK=<first 8 of meta SHA256>
+#       ENGINE_ALLOW_REMOTE=1      (if DB is not localhost/sqlite)
+#       ENGINE_ALLOW_NONEMPTY=1    (if schema had tables before boot)
 plan_flag  = os.getenv("ENGINE_APPLY_ADDITIVE_PLAN") == "1"
 apply_flag = os.getenv("ENGINE_APPLY_ADDITIVE") == "1"
 ack_value  = os.getenv("ENGINE_APPLY_ADDITIVE_ACK", "")
 allow_remote   = os.getenv("ENGINE_ALLOW_REMOTE") == "1"
 allow_nonempty = os.getenv("ENGINE_ALLOW_NONEMPTY") == "1" or not had_existing_tables
 
-# Determine if DB is "remote" (anything not sqlite or localhost)
+# Remote detection
 url = engine.url
 is_sqlite = url.get_backend_name().startswith("sqlite")
 is_remote_host = (not is_sqlite) and (url.host not in (None, "localhost", "127.0.0.1"))
 
+# Compute diff between DB and Meta (additive-only)
+diff = diff_schema(engine, meta)
+
 if plan_flag:
+    plan_text = diff.format_plan()
     logger.warning(
-        "ENGINE_APPLY_ADDITIVE_PLAN=1 → PLAN mode only. "
-        "Meta hash (SHA256) %s (ack hint: %s). Remote DB: %s. Had existing tables: %s",
-        meta_sha256, meta_ack_hint, is_remote_host, had_existing_tables
+        "PLAN ONLY. No writes will occur.\nMeta SHA256: %s (ACK hint: %s)\n%s",
+        meta_sha256, meta_ack_hint, plan_text
     )
-    plan_and_apply_additive(engine, meta, dialect=settings.DIALECT, apply=False)
+    raise SystemExit("Exiting after PLAN (no server start).")
+
+if diff.has_changes and not apply_flag:
+    # Neither PLAN nor APPLY requested -> refuse to start
+    raise SystemExit(
+        "Refusing to start: database schema does not match meta.\n"
+        f"Set ENGINE_APPLY_ADDITIVE_PLAN=1 to print a plan, or "
+        f"ENGINE_APPLY_ADDITIVE=1 with ENGINE_APPLY_ADDITIVE_ACK={meta_ack_hint} to apply.\n\n"
+        + diff.format_plan()
+    )
 
 if apply_flag:
     # Two-man rule: require hash ACK to match this meta
@@ -188,7 +196,13 @@ if apply_flag:
     )
     plan_and_apply_additive(engine, meta, dialect=settings.DIALECT, apply=True)
 
+    # Re-check after apply
+    diff2 = diff_schema(engine, meta)
+    if diff2.has_changes:
+        raise SystemExit("After APPLY, differences remain:\n" + diff2.format_plan())
+    logger.info("Additive migration complete; schema matches meta.")
 # -----------------------------------------------------------------------------
+
 
 # ---- Register CRUD routers (single-PK only) ----
 for t in meta.tables:
