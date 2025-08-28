@@ -6,6 +6,7 @@ import hashlib
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text, inspect
 
@@ -20,7 +21,19 @@ settings = get_settings()
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL, logging.INFO))
 logger = logging.getLogger("engine.main")
 
-app = FastAPI(title="Schema Backend Engine", version="0.1.0")
+def _unique_op_id(route: APIRoute) -> str:
+    method = next(iter(route.methods or {"GET"})).lower()
+    tag = (route.tags[0] if route.tags else "default").lower().replace(" ", "_")
+    name = (route.name or route.endpoint.__name__).lower().replace(" ", "_")
+    path = route.path_format.strip("/").replace("/", "_").replace("{", "").replace("}", "")
+    return f"{tag}__{name}__{method}__{path}"
+
+#app = FastAPI(title="Schema Backend Engine", version="0.1.0")
+app = FastAPI(
+    title="Schema Backend Engine",
+    version="0.1.0",
+    generate_unique_id_function=_unique_op_id,  # ← unique operationIds per route
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,26 +48,26 @@ def _sanitize_meta(meta: ModelMeta) -> ModelMeta:
     Fix common authoring artifacts:
       - FK referencedTable like 'process_definition/properties/id' -> 'process_definition'
       - FK referencedColumn missing or pointer-like -> 'id'
-      - Ensure form_definition.form_schema exists as JSON
+      - Ensure form_definition.field_state_setting exists as JSON
     Returns a new validated ModelMeta.
     """
     d = meta.model_dump(mode="json")
     fk_fixes = 0
     fk_defaulted = 0
-    form_schema_added = False
+    field_state_setting_added = False
 
     for t in d.get("tables", []):
-        # Ensure form_definition.form_schema
+        # Ensure form_definition.field_state_setting
         if t.get("tableName") == "form_definition":
             cols = t.get("columns", [])
-            if not any(c.get("columnName") == "form_schema" for c in cols):
+            if not any(c.get("columnName") == "field_state_setting" for c in cols):
                 cols.append({
-                    "columnName": "form_schema",
+                    "columnName": "field_state_setting",
                     "dataType": "JSON",
                     "isNullable": False
                 })
                 t["columns"] = cols
-                form_schema_added = True
+                field_state_setting_added = True
 
         # Normalize FK targets
         for fk in (t.get("foreignKeys") or []):
@@ -78,8 +91,8 @@ def _sanitize_meta(meta: ModelMeta) -> ModelMeta:
 
     meta_fixed = ModelMeta.model_validate(d)
     logger.info(
-        "Sanitized meta: fk_fixes=%s fk_defaultedColumn=%s form_schema_added=%s",
-        fk_fixes, fk_defaulted, form_schema_added
+        "Sanitized meta: fk_fixes=%s fk_defaultedColumn=%s field_state_setting_added=%s",
+        fk_fixes, fk_defaulted, field_state_setting_added
     )
     return meta_fixed
 

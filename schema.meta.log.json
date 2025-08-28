@@ -62,6 +62,12 @@
       "decided": "VARCHAR(255)"
     },
     {
+      "table": "form_definition",
+      "column": "field_state_setting",
+      "reason": "object stored as JSON",
+      "decided": "JSON"
+    },
+    {
       "table": "process_definition",
       "column": "name",
       "reason": "string without maxLength",
@@ -306,6 +312,18 @@
       "column": "updated_by",
       "reason": "string without maxLength",
       "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "process_form",
+      "column": "created_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
+    },
+    {
+      "table": "process_form",
+      "column": "updated_by",
+      "reason": "string without maxLength",
+      "decided": "VARCHAR(255)"
     }
   ],
   "fk_fallbacks": [
@@ -348,6 +366,13 @@
       "table": "task_field_behavior",
       "column": "form_definition_id",
       "target_table": "form_definition/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "workflow_state",
+      "column": "process_definition_id",
+      "target_table": "process_definition/properties/id",
       "target_column": "id",
       "decided": "UUID"
     },
@@ -439,6 +464,20 @@
       "table": "task_user_access",
       "column": "task_instance_id",
       "target_table": "task_instance/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "process_form",
+      "column": "process_definition_id",
+      "target_table": "process_definition/properties/id",
+      "target_column": "id",
+      "decided": "UUID"
+    },
+    {
+      "table": "process_form",
+      "column": "form_definition_id",
+      "target_table": "form_definition/properties/id",
       "target_column": "id",
       "decided": "UUID"
     }
@@ -549,6 +588,12 @@
     },
     {
       "table": "task_user_access",
+      "column": "created_at",
+      "original": "now()",
+      "normalized": "now"
+    },
+    {
+      "table": "process_form",
       "column": "created_at",
       "original": "now()",
       "normalized": "now"

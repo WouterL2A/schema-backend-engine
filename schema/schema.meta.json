@@ -6,20 +6,19 @@
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "name",
           "dataType": "VARCHAR",
-          "isNullable": false,
-          "length": 100
+          "length": 100,
+          "isUnique": true
         },
         {
           "columnName": "created_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         }
       ],
       "primaryKey": [
@@ -31,26 +30,24 @@
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "email",
           "dataType": "VARCHAR",
-          "isNullable": false,
-          "length": 255
+          "length": 255,
+          "isUnique": true
         },
         {
           "columnName": "hashed_password",
           "dataType": "VARCHAR",
-          "isNullable": false,
           "length": 255
         },
         {
           "columnName": "created_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         },
         {
           "columnName": "roles",
@@ -72,24 +69,21 @@
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "user_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "role_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "created_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         }
       ],
       "primaryKey": [
@@ -115,23 +109,20 @@
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "user_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "issued_at",
-          "dataType": "JSON",
-          "isNullable": false,
-          "defaultValue": "now()"
+          "dataType": "TIMESTAMP",
+          "defaultValue": "now"
         },
         {
           "columnName": "expires_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         }
       ],
@@ -148,28 +139,70 @@
       ]
     },
     {
-      "tableName": "form_definition",
+      "tableName": "legal_entity_type",
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "name",
           "dataType": "VARCHAR",
-          "isNullable": false,
+          "length": 255
+        },
+        {
+          "columnName": "description",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        },
+        {
+          "columnName": "created_at",
+          "dataType": "TIMESTAMP",
+          "isNullable": true,
+          "defaultValue": "now"
+        },
+        {
+          "columnName": "created_by",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        },
+        {
+          "columnName": "updated_at",
+          "dataType": "TIMESTAMP",
+          "isNullable": true
+        },
+        {
+          "columnName": "updated_by",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "tableName": "form_definition",
+      "columns": [
+        {
+          "columnName": "id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "name",
+          "dataType": "VARCHAR",
           "length": 255
         },
         {
           "columnName": "version",
-          "dataType": "INTEGER",
-          "isNullable": false
+          "dataType": "INTEGER"
         },
         {
           "columnName": "form_schema",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "JSON"
         },
         {
           "columnName": "is_active",
@@ -179,26 +212,31 @@
         },
         {
           "columnName": "created_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         },
         {
           "columnName": "created_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
           "columnName": "updated_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         },
         {
           "columnName": "updated_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
+        },
+        {
+          "columnName": "field_state_setting",
+          "dataType": "JSON",
+          "isNullable": true
         }
       ],
       "primaryKey": [
@@ -206,33 +244,137 @@
       ]
     },
     {
+      "tableName": "process_definition",
+      "columns": [
+        {
+          "columnName": "id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "name",
+          "dataType": "VARCHAR",
+          "length": 255
+        },
+        {
+          "columnName": "description",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        },
+        {
+          "columnName": "created_at",
+          "dataType": "TIMESTAMP",
+          "isNullable": true,
+          "defaultValue": "now"
+        },
+        {
+          "columnName": "created_by",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        },
+        {
+          "columnName": "updated_at",
+          "dataType": "TIMESTAMP",
+          "isNullable": true
+        },
+        {
+          "columnName": "updated_by",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ]
+    },
+    {
+      "tableName": "task_definition",
+      "columns": [
+        {
+          "columnName": "id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "process_definition_id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "name",
+          "dataType": "VARCHAR",
+          "length": 255
+        },
+        {
+          "columnName": "description",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        },
+        {
+          "columnName": "order",
+          "dataType": "INTEGER",
+          "isNullable": true
+        },
+        {
+          "columnName": "created_at",
+          "dataType": "TIMESTAMP",
+          "isNullable": true,
+          "defaultValue": "now"
+        },
+        {
+          "columnName": "created_by",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        },
+        {
+          "columnName": "updated_at",
+          "dataType": "TIMESTAMP",
+          "isNullable": true
+        },
+        {
+          "columnName": "updated_by",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ],
+      "foreignKeys": [
+        {
+          "columnName": "process_definition_id",
+          "referencedTable": "process_definition/properties/id",
+          "referencedColumn": "id",
+          "relationshipName": "process_definition"
+        }
+      ]
+    },
+    {
       "tableName": "task_field_behavior",
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "task_definition_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "form_definition_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "field_name",
           "dataType": "VARCHAR",
-          "isNullable": false,
           "length": 255
         },
         {
           "columnName": "action_context",
           "dataType": "VARCHAR",
-          "isNullable": false,
           "length": 255
         },
         {
@@ -255,26 +397,26 @@
         },
         {
           "columnName": "created_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         },
         {
           "columnName": "created_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
           "columnName": "updated_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         },
         {
           "columnName": "updated_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         }
       ],
       "primaryKey": [
@@ -283,219 +425,16 @@
       "foreignKeys": [
         {
           "columnName": "task_definition_id",
-          "referencedTable": "task_definition",
+          "referencedTable": "task_definition/properties/id",
           "referencedColumn": "id",
           "relationshipName": "task_definition"
         },
         {
           "columnName": "form_definition_id",
-          "referencedTable": "form_definition",
+          "referencedTable": "form_definition/properties/id",
           "referencedColumn": "id",
           "relationshipName": "form_definition"
         }
-      ]
-    },
-    {
-      "tableName": "form_entry",
-      "columns": [
-        {
-          "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
-        },
-        {
-          "columnName": "form_definition_id",
-          "dataType": "UUID",
-          "isNullable": false
-        },
-        {
-          "columnName": "process_instance_id",
-          "dataType": "UUID",
-          "isNullable": false
-        },
-        {
-          "columnName": "legal_entity_id",
-          "dataType": "UUID",
-          "isNullable": false
-        },
-        {
-          "columnName": "data",
-          "dataType": "JSON",
-          "isNullable": false
-        },
-        {
-          "columnName": "created_at",
-          "dataType": "JSON",
-          "isNullable": true,
-          "defaultValue": "now()"
-        },
-        {
-          "columnName": "created_by",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        },
-        {
-          "columnName": "updated_at",
-          "dataType": "JSON",
-          "isNullable": true
-        },
-        {
-          "columnName": "updated_by",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        }
-      ],
-      "primaryKey": [
-        "id"
-      ],
-      "foreignKeys": [
-        {
-          "columnName": "form_definition_id",
-          "referencedTable": "form_definition",
-          "referencedColumn": "id",
-          "relationshipName": "form_definition"
-        },
-        {
-          "columnName": "process_instance_id",
-          "referencedTable": "process_instance",
-          "referencedColumn": "id",
-          "relationshipName": "process_instance"
-        },
-        {
-          "columnName": "legal_entity_id",
-          "referencedTable": "legal_entity",
-          "referencedColumn": "id",
-          "relationshipName": "legal_entity"
-        }
-      ]
-    },
-    {
-      "tableName": "document_upload",
-      "columns": [
-        {
-          "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
-        },
-        {
-          "columnName": "form_entry_id",
-          "dataType": "UUID",
-          "isNullable": false
-        },
-        {
-          "columnName": "field_name",
-          "dataType": "VARCHAR",
-          "isNullable": false,
-          "length": 255
-        },
-        {
-          "columnName": "storage_type",
-          "dataType": "VARCHAR",
-          "isNullable": false,
-          "length": 255
-        },
-        {
-          "columnName": "storage_path",
-          "dataType": "VARCHAR",
-          "isNullable": false,
-          "length": 255
-        },
-        {
-          "columnName": "uploaded_at",
-          "dataType": "JSON",
-          "isNullable": true,
-          "defaultValue": "now()"
-        },
-        {
-          "columnName": "uploaded_by",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        },
-        {
-          "columnName": "created_at",
-          "dataType": "JSON",
-          "isNullable": true,
-          "defaultValue": "now()"
-        },
-        {
-          "columnName": "created_by",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        },
-        {
-          "columnName": "updated_at",
-          "dataType": "JSON",
-          "isNullable": true
-        },
-        {
-          "columnName": "updated_by",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        }
-      ],
-      "primaryKey": [
-        "id"
-      ],
-      "foreignKeys": [
-        {
-          "columnName": "form_entry_id",
-          "referencedTable": "form_entry",
-          "referencedColumn": "id",
-          "relationshipName": "form_entry"
-        }
-      ]
-    },
-    {
-      "tableName": "process_definition",
-      "columns": [
-        {
-          "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
-        },
-        {
-          "columnName": "name",
-          "dataType": "VARCHAR",
-          "isNullable": false,
-          "length": 255
-        },
-        {
-          "columnName": "description",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        },
-        {
-          "columnName": "created_at",
-          "dataType": "JSON",
-          "isNullable": true,
-          "defaultValue": "now()"
-        },
-        {
-          "columnName": "created_by",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        },
-        {
-          "columnName": "updated_at",
-          "dataType": "JSON",
-          "isNullable": true
-        },
-        {
-          "columnName": "updated_by",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        }
-      ],
-      "primaryKey": [
-        "id"
       ]
     },
     {
@@ -503,48 +442,45 @@
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "process_definition_id",
-          "dataType": "UUID",
-          "isNullable": true
+          "dataType": "UUID"
         },
         {
           "columnName": "name",
           "dataType": "VARCHAR",
-          "isNullable": false,
           "length": 255
         },
         {
           "columnName": "description",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
           "columnName": "created_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         },
         {
           "columnName": "created_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
           "columnName": "updated_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         },
         {
           "columnName": "updated_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         }
       ],
       "primaryKey": [
@@ -553,7 +489,7 @@
       "foreignKeys": [
         {
           "columnName": "process_definition_id",
-          "referencedTable": "process_definition",
+          "referencedTable": "process_definition/properties/id",
           "referencedColumn": "id",
           "relationshipName": "process_definition"
         }
@@ -564,47 +500,44 @@
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "from_state_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "to_state_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "condition",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
           "columnName": "created_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         },
         {
           "columnName": "created_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
           "columnName": "updated_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         },
         {
           "columnName": "updated_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         }
       ],
       "primaryKey": [
@@ -613,70 +546,68 @@
       "foreignKeys": [
         {
           "columnName": "from_state_id",
-          "referencedTable": "workflow_state",
+          "referencedTable": "workflow_state/properties/id",
           "referencedColumn": "id",
           "relationshipName": "from_state"
         },
         {
           "columnName": "to_state_id",
-          "referencedTable": "workflow_state",
+          "referencedTable": "workflow_state/properties/id",
           "referencedColumn": "id",
           "relationshipName": "to_state"
         }
       ]
     },
     {
-      "tableName": "task_definition",
+      "tableName": "legal_entity",
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
-        },
-        {
-          "columnName": "process_definition_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "name",
           "dataType": "VARCHAR",
-          "isNullable": false,
           "length": 255
         },
         {
-          "columnName": "description",
+          "columnName": "type_id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "email",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
-          "columnName": "order",
-          "dataType": "INTEGER",
+          "columnName": "phone_number",
+          "dataType": "VARCHAR",
+          "length": 255,
           "isNullable": true
         },
         {
           "columnName": "created_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         },
         {
           "columnName": "created_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
           "columnName": "updated_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         },
         {
           "columnName": "updated_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         }
       ],
       "primaryKey": [
@@ -684,10 +615,10 @@
       ],
       "foreignKeys": [
         {
-          "columnName": "process_definition_id",
-          "referencedTable": "process_definition",
+          "columnName": "type_id",
+          "referencedTable": "legal_entity_type/properties/id",
           "referencedColumn": "id",
-          "relationshipName": "process_definition"
+          "relationshipName": "type"
         }
       ]
     },
@@ -696,46 +627,43 @@
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "definition_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "legal_entity_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "current_state_id",
-          "dataType": "JSON",
+          "dataType": "UUID",
           "isNullable": true
         },
         {
           "columnName": "started_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         },
         {
           "columnName": "created_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
           "columnName": "updated_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         },
         {
           "columnName": "updated_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         }
       ],
       "primaryKey": [
@@ -744,21 +672,92 @@
       "foreignKeys": [
         {
           "columnName": "definition_id",
-          "referencedTable": "process_definition",
+          "referencedTable": "process_definition/properties/id",
           "referencedColumn": "id",
           "relationshipName": "definition"
         },
         {
           "columnName": "legal_entity_id",
-          "referencedTable": "legal_entity",
+          "referencedTable": "legal_entity/properties/id",
           "referencedColumn": "id",
           "relationshipName": "legal_entity"
         },
         {
           "columnName": "current_state_id",
-          "referencedTable": "workflow_state",
+          "referencedTable": "workflow_state/properties/id",
           "referencedColumn": "id",
           "relationshipName": "current_state"
+        }
+      ]
+    },
+    {
+      "tableName": "form_entry",
+      "columns": [
+        {
+          "columnName": "id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "form_definition_id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "process_instance_id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "legal_entity_id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "data",
+          "dataType": "JSON"
+        },
+        {
+          "columnName": "created_at",
+          "dataType": "TIMESTAMP",
+          "isNullable": true,
+          "defaultValue": "now"
+        },
+        {
+          "columnName": "created_by",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        },
+        {
+          "columnName": "updated_at",
+          "dataType": "TIMESTAMP",
+          "isNullable": true
+        },
+        {
+          "columnName": "updated_by",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ],
+      "foreignKeys": [
+        {
+          "columnName": "form_definition_id",
+          "referencedTable": "form_definition/properties/id",
+          "referencedColumn": "id",
+          "relationshipName": "form_definition"
+        },
+        {
+          "columnName": "process_instance_id",
+          "referencedTable": "process_instance/properties/id",
+          "referencedColumn": "id",
+          "relationshipName": "process_instance"
+        },
+        {
+          "columnName": "legal_entity_id",
+          "referencedTable": "legal_entity/properties/id",
+          "referencedColumn": "id",
+          "relationshipName": "legal_entity"
         }
       ]
     },
@@ -767,58 +766,55 @@
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "task_definition_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "process_instance_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "status",
           "dataType": "VARCHAR",
-          "isNullable": true,
           "length": 255,
+          "isNullable": true,
           "defaultValue": "pending"
         },
         {
           "columnName": "started_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         },
         {
           "columnName": "completed_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         },
         {
           "columnName": "created_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         },
         {
           "columnName": "created_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
           "columnName": "updated_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         },
         {
           "columnName": "updated_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         }
       ],
       "primaryKey": [
@@ -827,15 +823,89 @@
       "foreignKeys": [
         {
           "columnName": "task_definition_id",
-          "referencedTable": "task_definition",
+          "referencedTable": "task_definition/properties/id",
           "referencedColumn": "id",
           "relationshipName": "task_definition"
         },
         {
           "columnName": "process_instance_id",
-          "referencedTable": "process_instance",
+          "referencedTable": "process_instance/properties/id",
           "referencedColumn": "id",
           "relationshipName": "process_instance"
+        }
+      ]
+    },
+    {
+      "tableName": "document_upload",
+      "columns": [
+        {
+          "columnName": "id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "form_entry_id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "field_name",
+          "dataType": "VARCHAR",
+          "length": 255
+        },
+        {
+          "columnName": "storage_type",
+          "dataType": "VARCHAR",
+          "length": 255
+        },
+        {
+          "columnName": "storage_path",
+          "dataType": "VARCHAR",
+          "length": 255
+        },
+        {
+          "columnName": "uploaded_at",
+          "dataType": "TIMESTAMP",
+          "isNullable": true,
+          "defaultValue": "now"
+        },
+        {
+          "columnName": "uploaded_by",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        },
+        {
+          "columnName": "created_at",
+          "dataType": "TIMESTAMP",
+          "isNullable": true,
+          "defaultValue": "now"
+        },
+        {
+          "columnName": "created_by",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        },
+        {
+          "columnName": "updated_at",
+          "dataType": "TIMESTAMP",
+          "isNullable": true
+        },
+        {
+          "columnName": "updated_by",
+          "dataType": "VARCHAR",
+          "length": 255,
+          "isNullable": true
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ],
+      "foreignKeys": [
+        {
+          "columnName": "form_entry_id",
+          "referencedTable": "form_entry/properties/id",
+          "referencedColumn": "id",
+          "relationshipName": "form_entry"
         }
       ]
     },
@@ -844,42 +914,39 @@
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "task_instance_id",
-          "dataType": "UUID",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
           "columnName": "user_id",
           "dataType": "VARCHAR",
-          "isNullable": false,
           "length": 255
         },
         {
           "columnName": "created_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         },
         {
           "columnName": "created_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
           "columnName": "updated_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         },
         {
           "columnName": "updated_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         }
       ],
       "primaryKey": [
@@ -888,113 +955,65 @@
       "foreignKeys": [
         {
           "columnName": "task_instance_id",
-          "referencedTable": "task_instance",
+          "referencedTable": "task_instance/properties/id",
           "referencedColumn": "id",
           "relationshipName": "task_instance"
         }
       ]
     },
     {
-      "tableName": "legal_entity_type",
+      "tableName": "process_form",
       "columns": [
         {
           "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
+          "dataType": "UUID"
         },
         {
-          "columnName": "name",
-          "dataType": "VARCHAR",
-          "isNullable": false,
-          "length": 255
+          "columnName": "process_definition_id",
+          "dataType": "UUID"
         },
         {
-          "columnName": "description",
-          "dataType": "VARCHAR",
+          "columnName": "form_definition_id",
+          "dataType": "UUID"
+        },
+        {
+          "columnName": "is_default",
+          "dataType": "BOOLEAN",
           "isNullable": true,
-          "length": 255
+          "defaultValue": false
+        },
+        {
+          "columnName": "valid_from",
+          "dataType": "TIMESTAMP",
+          "isNullable": true
+        },
+        {
+          "columnName": "valid_to",
+          "dataType": "TIMESTAMP",
+          "isNullable": true
         },
         {
           "columnName": "created_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true,
-          "defaultValue": "now()"
+          "defaultValue": "now"
         },
         {
           "columnName": "created_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
+          "length": 255,
+          "isNullable": true
         },
         {
           "columnName": "updated_at",
-          "dataType": "JSON",
+          "dataType": "TIMESTAMP",
           "isNullable": true
         },
         {
           "columnName": "updated_by",
           "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        }
-      ],
-      "primaryKey": [
-        "id"
-      ]
-    },
-    {
-      "tableName": "legal_entity",
-      "columns": [
-        {
-          "columnName": "id",
-          "dataType": "JSON",
-          "isNullable": false
-        },
-        {
-          "columnName": "name",
-          "dataType": "VARCHAR",
-          "isNullable": false,
-          "length": 255
-        },
-        {
-          "columnName": "type_id",
-          "dataType": "UUID",
-          "isNullable": false
-        },
-        {
-          "columnName": "email",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        },
-        {
-          "columnName": "phone_number",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        },
-        {
-          "columnName": "created_at",
-          "dataType": "JSON",
-          "isNullable": true,
-          "defaultValue": "now()"
-        },
-        {
-          "columnName": "created_by",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
-        },
-        {
-          "columnName": "updated_at",
-          "dataType": "JSON",
+          "length": 255,
           "isNullable": true
-        },
-        {
-          "columnName": "updated_by",
-          "dataType": "VARCHAR",
-          "isNullable": true,
-          "length": 255
         }
       ],
       "primaryKey": [
@@ -1002,10 +1021,16 @@
       ],
       "foreignKeys": [
         {
-          "columnName": "type_id",
-          "referencedTable": "legal_entity_type",
+          "columnName": "process_definition_id",
+          "referencedTable": "process_definition/properties/id",
           "referencedColumn": "id",
-          "relationshipName": "type"
+          "relationshipName": "process_definition"
+        },
+        {
+          "columnName": "form_definition_id",
+          "referencedTable": "form_definition/properties/id",
+          "referencedColumn": "id",
+          "relationshipName": "form_definition"
         }
       ]
     }

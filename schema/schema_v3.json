@@ -195,6 +195,10 @@
         },
         "updated_by": {
           "type": "string"
+        },
+        "field_state_setting": {
+          "type": "object",
+          "description": "Define the Matrix for Field state settings"
         }
       },
       "required": [
@@ -846,6 +850,142 @@
         "id"
       ],
       "additionalProperties": false
+    },
+    "process_form": {
+      "type": "object",
+      "title": "ProcessFormLink",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "process_definition_id": {
+          "allOf": [
+            {
+              "$ref": "https://example.com/schemas/process.schema.json#/definitions/ProcessDefinitionId"
+            }
+          ],
+          "refTable": "process_definition",
+          "refColumn": "id",
+          "relationshipName": "process_definition",
+          "x-rel": {
+            "entity": "process_definition",
+            "field": "id",
+            "labelKey": "name"
+          },
+          "description": "FK to process_definition.id",
+          "$ref": "#/definitions/process_definition/properties/id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "form_definition_id": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/FormDefinitionId"
+            }
+          ],
+          "refTable": "form_definition",
+          "refColumn": "id",
+          "relationshipName": "form_definition",
+          "x-rel": {
+            "entity": "form_definition",
+            "field": "id",
+            "labelKey": "name"
+          },
+          "description": "FK to form_definition.id (specific version)",
+          "$ref": "#/definitions/form_definition/properties/id",
+          "type": "string",
+          "format": "uuid"
+        },
+        "is_default": {
+          "type": "boolean",
+          "default": false
+        },
+        "valid_from": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "type": "string",
+          "format": "date-time"
+        },
+        "valid_to": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "type": "string",
+          "format": "date-time"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "default": "now()"
+        },
+        "created_by": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "type": "string"
+        },
+        "updated_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_by": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "process_definition_id",
+        "form_definition_id"
+      ],
+      "x-primaryKey": [
+        "id"
+      ],
+      "x-unique": [
+        [
+          "process_definition_id",
+          "form_definition_id"
+        ]
+      ],
+      "additionalProperties": false,
+      "primaryKey": [
+        "id"
+      ]
     }
   }
 }

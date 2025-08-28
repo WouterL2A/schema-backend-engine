@@ -195,6 +195,10 @@
         },
         "updated_by": {
           "type": "string"
+        },
+        "field_state_setting": {
+          "type": "object",
+          "description": "Define the Matrix for Field state settings"
         }
       },
       "required": [

@@ -48,6 +48,18 @@
           "dataType": "TIMESTAMP",
           "isNullable": true,
           "defaultValue": "now"
+        },
+        {
+          "columnName": "roles",
+          "dataType": "VARCHAR",
+          "length": 2048,
+          "isNullable": true
+        },
+        {
+          "columnName": "permissions",
+          "dataType": "VARCHAR",
+          "length": 2048,
+          "isNullable": true
         }
       ],
       "primaryKey": [
@@ -191,8 +203,13 @@
           "dataType": "INTEGER"
         },
         {
+          "columnName": "form_schema",
+          "dataType": "VARCHAR",
+          "length": 2048
+        },
+        {
           "columnName": "is_active",
-          "dataType": "BOOLEAN",
+          "dataType": "INTEGER",
           "isNullable": true,
           "defaultValue": true
         },
@@ -360,19 +377,19 @@
         },
         {
           "columnName": "visible",
-          "dataType": "BOOLEAN",
+          "dataType": "INTEGER",
           "isNullable": true,
           "defaultValue": true
         },
         {
           "columnName": "editable",
-          "dataType": "BOOLEAN",
+          "dataType": "INTEGER",
           "isNullable": true,
           "defaultValue": false
         },
         {
           "columnName": "required",
-          "dataType": "BOOLEAN",
+          "dataType": "INTEGER",
           "isNullable": true,
           "defaultValue": false
         },
@@ -677,6 +694,11 @@
         {
           "columnName": "legal_entity_id",
           "dataType": "UUID"
+        },
+        {
+          "columnName": "data",
+          "dataType": "VARCHAR",
+          "length": 2048
         },
         {
           "columnName": "created_at",
